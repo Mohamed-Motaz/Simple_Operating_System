@@ -4,65 +4,32 @@
 
 //2022: NOTE: All kernel heap allocations are multiples of PAGE_SIZE (4KB)
 
-//file declarations
+//helper methods
+void initializeDataArr();
+void* kmallocNextFit(uint32 size);
 
+//declarations
 struct DataLocAndSz {
 	uint32 virtualAddr;
 	uint32 numBytesAllocated;
 };
 
-int dataArrIdx = 0;                                                         //next idx to fill in the data
-struct DataLocAndSz dataArr[5000];                                     //array of current kheap memory allocations
-
-uint32 K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR = (uint32)KERNEL_HEAP_START; //next ptr to check to allocate in NEX FIT STRATEGY
+struct DataLocAndSz dataArr[(KERNEL_HEAP_MAX - KERNEL_HEAP_START) / PAGE_SIZE + 100];                                 //array of current kheap memory allocations
+uint32 K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR = (uint32)KERNEL_HEAP_START;      //next ptr to check to allocate in NEX FIT STRATEGY
+uint8 firstRun = 1;
 
 void* kmalloc(unsigned int size)
 {
 	//TODO: [PROJECT 2022 - [1] Kernel Heap] kmalloc()
-	// Write your code here, remove the panic and write your code
-	//kpanic_into_prompt("kmalloc() is not implemented yet...!!");
-
-	//NOTE: Allocation using NEXTFIT strategy
-	//NOTE: All kernel heap allocations are multiples of PAGE_SIZE (4KB)
-	//refer to the project presentation and documentation for details
-
-	//NEXT FIT STRATEGY START--------------------------------------------------------------------------------------------------------------
-
-	uint32 start = K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR;     //keep track of the point I started in
-	uint32 sizeToAllocate = ROUNDUP(size, PAGE_SIZE);
-	uint32 end = start + sizeToAllocate; //seems to overflow in some cases
-
-	//cprintf("%d -- %d -- %d -- %d\n", (uint32)start, (uint32)size, (uint32)end, (uint32)KERNEL_HEAP_MAX);
-
-    //TODO need to handle the case of starting over from zero
-	if (sizeToAllocate > KERNEL_HEAP_MAX - start)        //not enough space to try in the first place
-		return NULL;
-
-    for( ; start < end; start += PAGE_SIZE)
-    {
-	    struct Frame_Info* frameInfo;
-
-	    int res = allocate_frame(&frameInfo);
-	    if(res == E_NO_MEM)
-		    return NULL;
-
-	    res = map_frame(ptr_page_directory, frameInfo, (void*)start, PERM_PRESENT | PERM_WRITEABLE);
-	    if(res == E_NO_MEM)
-	    {
-		    free_frame(frameInfo);
-		    return NULL;
-	    }
+    if (firstRun){
+        initializeDataArr();
+        firstRun = 0;
     }
 
-   //successful allocation
-   //cprintf("in %d\n", dataArrIdx);
-   dataArr[dataArrIdx].virtualAddr = K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR;
-   dataArr[dataArrIdx].numBytesAllocated = sizeToAllocate;
 
-   K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR = start; //move the pointer so the next allocation starts right after this one
-
-
-   return (void*)dataArr[dataArrIdx++].virtualAddr;
+	size = ROUNDUP(size, PAGE_SIZE); //round up the size before passing it to the methods
+	//NEXT FIT STRATEGY START--------------------------------------------------------------------------------------------------------------
+    return kmallocNextFit(size);
 
 	//NEXT FIT STRATEGY END --------------------------------------------------------------------------------------------------------------
 
@@ -74,32 +41,95 @@ void* kmalloc(unsigned int size)
 	// and "isKHeapPlacementStrategyNEXTFIT() ..."
 	//functions to check the current strategy
 	//change this "return" according to your answer
+    return NULL;
 
+}
 
+void initializeDataArr(){
+    //initialize the dataArr by setting all the addresses correctly
+
+	for (uint32 addr = KERNEL_HEAP_START; addr < KERNEL_HEAP_MAX; addr += PAGE_SIZE){
+		dataArr[(addr - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated = 0;
+		dataArr[(addr - KERNEL_HEAP_START) / PAGE_SIZE].virtualAddr = addr;
+	}
+
+}
+
+void* kmallocNextFit(uint32 size){
+	uint32 start = K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR;
+	uint32 end = start;
+	uint32 freeBytesFound = 0;
+
+	while (start < KERNEL_HEAP_MAX){
+		start += PAGE_SIZE;
+
+		if (0 == dataArr[(start - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated){
+			//found a free page
+			freeBytesFound += PAGE_SIZE;
+
+			if (freeBytesFound == size){
+				start -= size;
+				break;
+			}
+            continue;
+		}
+
+		//need to look for another segment
+		freeBytesFound = 0;
+//		if (end == K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR)
+//			end = start;
+
+	}
+
+	if (freeBytesFound != size){
+		//retry from the start of the heap
+		start = KERNEL_HEAP_START;
+		freeBytesFound = 0;
+		while (start < end){
+			start += PAGE_SIZE;
+
+			if (0 == dataArr[(start - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated){
+				//found a free page
+				freeBytesFound += PAGE_SIZE;
+
+				if (freeBytesFound == size){
+					start -= size;
+					break;
+				}
+				continue;
+			}
+
+			freeBytesFound = 0;
+
+		}
+	}
+	if (freeBytesFound < size)return NULL;
+
+	//begin the allocation
+	uint32 startAlloc = start;
+	uint32 szAlloc = 0;
+	while (szAlloc < size){
+		struct Frame_Info *ptr_frame_info = 0;
+		allocate_frame(&ptr_frame_info);
+		map_frame(ptr_page_directory, ptr_frame_info, (void*)startAlloc, PERM_PRESENT | PERM_WRITEABLE);
+		dataArr[(startAlloc - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated = freeBytesFound;
+		dataArr[(startAlloc - KERNEL_HEAP_START) / PAGE_SIZE].virtualAddr = start;
+		startAlloc += PAGE_SIZE;
+		szAlloc += PAGE_SIZE;
+	}
+	K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR = start + szAlloc;  //set the pointer to look just after this point of allocation
+
+	return (void*)start;
 }
 
 void kfree(void* virtual_address)
 {
 	//TODO: [PROJECT 2022 - [2] Kernel Heap] kfree()
 	// Write your code here, remove the panic and write your code
-	//panic("kfree() is not implemented yet...!!");
+	panic("kfree() is not implemented yet...!!");
 
 	//you need to get the size of the given allocation using its address
 	//refer to the project presentation and documentation for details
-
-    for(int i=0;i<dataArrIdx;i++)
-	{
-	    if (virtual_address==(void*)dataArr[i].virtualAddr)
-		    {
-		   uint32 VA=dataArr[i].virtualAddr+dataArr[i].numBytesAllocated;
-		   for(uint32 k= (uint32)virtual_address;k<VA;k+=PAGE_SIZE)
-		   {
-			unmap_frame(ptr_page_directory,(uint32*)k);
-		   }
-			dataArr[i].numBytesAllocated=0;
-			dataArr[i].virtualAddr=0;
-	     }
-	}
 
 }
 
