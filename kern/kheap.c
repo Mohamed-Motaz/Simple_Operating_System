@@ -4,7 +4,17 @@
 
 //2022: NOTE: All kernel heap allocations are multiples of PAGE_SIZE (4KB)
 
-int K_MALLOC_NEXT_FIT_STRATEGY_CUR_IDX = 0;
+//file declarations
+
+struct DataLocAndSz {
+	uint32 virtualAddr;
+	uint32 numBytesAllocated;
+};
+
+int dataArrIdx = 0;                                                         //next idx to fill in the data
+struct DataLocAndSz dataArr[5000];                                     //array of current kheap memory allocations
+
+uint32 K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR = (uint32)KERNEL_HEAP_START; //next ptr to check to allocate in NEX FIT STRATEGY
 
 void* kmalloc(unsigned int size)
 {
@@ -18,12 +28,41 @@ void* kmalloc(unsigned int size)
 
 	//NEXT FIT STRATEGY START--------------------------------------------------------------------------------------------------------------
 
-	//loop on kernel heap, page tables 960 to 1023
+	uint32 start = K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR;     //keep track of the point I started in
+	uint32 sizeToAllocate = ROUNDUP(size, PAGE_SIZE);
+	uint32 end = start + sizeToAllocate; //seems to overflow in some cases
 
-	for (int i = 960; i < 1024; i++){
-		uint32 pageTable = ptr_page_directory[i];
-		kheap_virtual_address()
-	}
+	//cprintf("%d -- %d -- %d -- %d\n", (uint32)start, (uint32)size, (uint32)end, (uint32)KERNEL_HEAP_MAX);
+
+    //TODO need to handle the case of starting over from zero
+	if (sizeToAllocate > KERNEL_HEAP_MAX - start)        //not enough space to try in the first place
+		return NULL;
+
+    for( ; start < end; start += PAGE_SIZE)
+    {
+	    struct Frame_Info* frameInfo;
+
+	    int res = allocate_frame(&frameInfo);
+	    if(res == E_NO_MEM)
+		    return NULL;
+
+	    res = map_frame(ptr_page_directory, frameInfo, (void*)start, PERM_PRESENT | PERM_WRITEABLE);
+	    if(res == E_NO_MEM)
+	    {
+		    free_frame(frameInfo);
+		    return NULL;
+	    }
+    }
+
+   //successful allocation
+   //cprintf("in %d\n", dataArrIdx);
+   dataArr[dataArrIdx].virtualAddr = K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR;
+   dataArr[dataArrIdx].numBytesAllocated = sizeToAllocate;
+
+   K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR = start; //move the pointer so the next allocation starts right after this one
+
+
+   return (void*)dataArr[dataArrIdx++].virtualAddr;
 
 	//NEXT FIT STRATEGY END --------------------------------------------------------------------------------------------------------------
 
@@ -36,8 +75,6 @@ void* kmalloc(unsigned int size)
 	//functions to check the current strategy
 	//change this "return" according to your answer
 
-	return NULL;
-
 
 }
 
@@ -45,10 +82,24 @@ void kfree(void* virtual_address)
 {
 	//TODO: [PROJECT 2022 - [2] Kernel Heap] kfree()
 	// Write your code here, remove the panic and write your code
-	panic("kfree() is not implemented yet...!!");
+	//panic("kfree() is not implemented yet...!!");
 
 	//you need to get the size of the given allocation using its address
 	//refer to the project presentation and documentation for details
+
+    for(int i=0;i<dataArrIdx;i++)
+	{
+	    if (virtual_address==(void*)dataArr[i].virtualAddr)
+		    {
+		   uint32 VA=dataArr[i].virtualAddr+dataArr[i].numBytesAllocated;
+		   for(uint32 k= (uint32)virtual_address;k<VA;k+=PAGE_SIZE)
+		   {
+			unmap_frame(ptr_page_directory,(uint32*)k);
+		   }
+			dataArr[i].numBytesAllocated=0;
+			dataArr[i].virtualAddr=0;
+	     }
+	}
 
 }
 
@@ -65,13 +116,24 @@ unsigned int kheap_virtual_address(unsigned int physical_address)
 
 	//extract frame number
 
+	struct Frame_Info* frameInfo = to_frame_info(physical_address);  //doesnt return an error, only panics
+
+    for (uint32 addr = KERNEL_HEAP_START; addr < KERNEL_HEAP_MAX; addr += PAGE_SIZE)
+    {
+        struct Frame_Info* tmpFrame = get_frame_info(ptr_page_directory, (void *)addr, NULL);
+        if(frameInfo == tmpFrame)
+            return addr;
+    }
+//change this "return" according to your answer
+	return 0;
+
 	uint32 frameNum = physical_address / PAGE_SIZE;  //round down
 
 	//search for frame number in all the page tables
 
 	for (uint32 addr = KERNEL_HEAP_START; addr <= KERNEL_HEAP_MAX; addr+= PAGE_SIZE){
 	    	uint32* pageTable;
-	        get_page_table(ptr_page_directory, (void *)addr, 0, &pageTable);
+	        get_page_table(ptr_page_directory, (void *)addr, &pageTable);
 
 	        if (pageTable == NULL)
 	        	continue;
@@ -92,7 +154,7 @@ unsigned int kheap_virtual_address(unsigned int physical_address)
 	        }
 	    }
 
-	return NULL;
+	return 0;
 }
 
 unsigned int kheap_physical_address(unsigned int virtual_address)
@@ -105,51 +167,14 @@ unsigned int kheap_physical_address(unsigned int virtual_address)
 	//refer to the project presentation and documentation for details
 
 	//change this "return" according to your answer
-	return 0;
+
+	struct Frame_Info * frameInfo = get_frame_info(ptr_page_directory, (void *)virtual_address, NULL);
+	if(frameInfo == NULL)
+		return 0;
+	return to_physical_address(frameInfo);
 }
 
 
 /*
- * int numFramesToAllocate = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
-    int startingIdx = K_MALLOC_NEXT_FIT_STRATEGY_CUR_IDX; //to prevent an infinite loop
-    int numFramesFreeSoFar = 0;
-    int firstFreeFrameMetIdx = -1;
-    do{
-    	 //TODO: optimize this for loop
-
-		struct Frame_Info * curFrame = frames_info[K_MALLOC_NEXT_FIT_STRATEGY_CUR_IDX];
-		if (curFrame->references != 0){
-			//I can't allocate this frame
-            numFramesFreeSoFar = 0;
-            firstFreeFrameMetIdx = -1;
-		}else{
-            if (numFramesFreeSoFar == 0) //first free frame met so far
-            	firstFreeFrameMetIdx = K_MALLOC_NEXT_FIT_STRATEGY_CUR_IDX;
-
-			numFramesFreeSoFar++;
-		}
-
-        if (numFramesFreeSoFar == numFramesToAllocate)
-        	break;
-
-
-		K_MALLOC_NEXT_FIT_STRATEGY_CUR_IDX++;
-
-		if (K_MALLOC_NEXT_FIT_STRATEGY_CUR_IDX == number_of_frames){
-			//I reached the end, I have to restart and set numFramesFreeSoFar = 0
-			numFramesFreeSoFar = 0;
-			firstFreeFrameMetIdx = -1;
-		}
-
-		K_MALLOC_NEXT_FIT_STRATEGY_CUR_IDX %= number_of_frames; //to go back to idx 0
-    }while(startingIdx != K_MALLOC_NEXT_FIT_STRATEGY_CUR_IDX);
-
-    if (numFramesFreeSoFar == numFramesToAllocate){
-    	//success, need to allocate
-    	for (int i = firstFreeFrameMetIdx; i < numFramesToAllocate; i++){
-    		struct Frame_Info * frameInfo = frames_info[i];
-    		allocate_frame(&frameInfo);
-    	}
-    }
- */
+ *
  */
