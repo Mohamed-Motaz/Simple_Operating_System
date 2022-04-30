@@ -10,10 +10,12 @@ void* kmallocNextFit(uint32 size);
 
 //declarations
 struct DataLocAndSz {
-	uint32 virtualAddr;
+	uint32 virtualAddr;      //same for all parts in a segment
+	uint32 realVirtualAddr; //real one, it doesn't change ever
 	uint32 numBytesAllocated;
+	uint32 physAddr;
 };
-
+int dataArrSz = (KERNEL_HEAP_MAX - KERNEL_HEAP_START) / PAGE_SIZE + 100;
 struct DataLocAndSz dataArr[(KERNEL_HEAP_MAX - KERNEL_HEAP_START) / PAGE_SIZE + 100];                                 //array of current kheap memory allocations
 uint32 K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR = (uint32)KERNEL_HEAP_START;      //next ptr to check to allocate in NEX FIT STRATEGY
 uint8 firstRun = 1;
@@ -50,6 +52,8 @@ void initializeDataArr(){
 	for (uint32 addr = KERNEL_HEAP_START; addr < KERNEL_HEAP_MAX; addr += PAGE_SIZE){
 		dataArr[(addr - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated = 0;
 		dataArr[(addr - KERNEL_HEAP_START) / PAGE_SIZE].virtualAddr = addr;
+		dataArr[(addr - KERNEL_HEAP_START) / PAGE_SIZE].realVirtualAddr = addr;
+
 	}
 }
 
@@ -106,6 +110,7 @@ void* kmallocNextFit(uint32 size){
 		map_frame(ptr_page_directory, ptr_frame_info, (void*)startAlloc, PERM_PRESENT | PERM_WRITEABLE);
 		dataArr[(startAlloc - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated = freeBytesFound;
 		dataArr[(startAlloc - KERNEL_HEAP_START) / PAGE_SIZE].virtualAddr = start;
+		dataArr[(startAlloc - KERNEL_HEAP_START) / PAGE_SIZE].physAddr = kheap_physical_address(startAlloc);
 	}
 
 	K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR = start + szAlloc;  //set the pointer to look just after this point of allocation
@@ -124,6 +129,7 @@ void kfree(void* virtual_address)
 			unmap_frame(ptr_page_directory, (void*)startDeAlloc);
 			dataArr[(startDeAlloc - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated = 0;
 			dataArr[(startDeAlloc - KERNEL_HEAP_START) / PAGE_SIZE].virtualAddr = startDeAlloc;  //return the value to be the same during initialization
+			dataArr[(startDeAlloc - KERNEL_HEAP_START) / PAGE_SIZE].physAddr = 0;
 		}else
 			break;
 
@@ -131,55 +137,12 @@ void kfree(void* virtual_address)
 
 unsigned int kheap_virtual_address(unsigned int physical_address)
 {
-	//TODO: [PROJECT 2022 - [3] Kernel Heap] kheap_virtual_address()
-	// Write your code here, remove the panic and write your code
-	//panic("kheap_virtual_address() is not implemented yet...!!");
+	//TODO:DONE [PROJECT 2022 - [3] Kernel Heap] kheap_virtual_address()
 
-	//return the virtual address corresponding to given physical_address
-	//refer to the project presentation and documentation for details
-
-	//change this "return" according to your answer
-
-	//extract frame number
-
-	struct Frame_Info* frameInfo = to_frame_info(physical_address);  //doesnt return an error, only panics
-
-    for (uint32 addr = KERNEL_HEAP_START; addr < KERNEL_HEAP_MAX; addr += PAGE_SIZE)
-    {
-        struct Frame_Info* tmpFrame = get_frame_info(ptr_page_directory, (void *)addr, NULL);
-        if(frameInfo == tmpFrame)
-            return addr;
-    }
-//change this "return" according to your answer
-	return 0;
-
-	uint32 frameNum = physical_address / PAGE_SIZE;  //round down
-
-	//search for frame number in all the page tables
-
-	for (uint32 addr = KERNEL_HEAP_START; addr <= KERNEL_HEAP_MAX; addr+= PAGE_SIZE){
-	    	uint32* pageTable;
-	        get_page_table(ptr_page_directory, (void *)addr, &pageTable);
-
-	        if (pageTable == NULL)
-	        	continue;
-
-	        for (int i = 0; i < 1024; i++){
-
-	        	if ((pageTable[i] >> 12) == frameNum){
-	        		if ((pageTable[i] & PERM_PRESENT) == 0)  //not present
-	        			continue;
-
-	            	addr = addr >> 12; //remove the offset
-	                addr |= i; //add the page
-	                addr = addr << 12; //re-add the offset
-	            	//cprintf("%x \n", addr);
-	        		return (uint32)(addr);
-
-	        	}
-	        }
-	    }
-
+	for (int i = 0; i < dataArrSz; i++){
+		if (dataArr[i].physAddr == physical_address)
+			return dataArr[i].realVirtualAddr;
+	}
 	return 0;
 }
 
