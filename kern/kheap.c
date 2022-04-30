@@ -55,44 +55,42 @@ void initializeDataArr(){
 
 void* kmallocNextFit(uint32 size){
 	uint32 start = K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR;
-	uint32 end = start;
+	uint32 end = start;     //end is start as path may be circular
 	uint32 freeBytesFound = 0;
 
-	while (start < KERNEL_HEAP_MAX){
+	for ( ;start < KERNEL_HEAP_MAX; start += PAGE_SIZE){
 		if (0 == dataArr[(start - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated){
 			//found a free page
-			start += PAGE_SIZE;
 			freeBytesFound += PAGE_SIZE;
 
 			if (freeBytesFound == size){
-				start -= size;
+				start -= size;//return start ptr properly
+				start += PAGE_SIZE; //since start isnt incremented until the end of the iteration
 				break;
 			}
             continue;
 		}
 		//need to look for another segment
-		start += PAGE_SIZE;
 		freeBytesFound = 0;
 	}
 
+	//retry from the start of the heap
 	if (freeBytesFound != size){
-		//retry from the start of the heap
 		start = KERNEL_HEAP_START;
 		freeBytesFound = 0;
-		while (start < end){
+		for ( ;start < end; start += PAGE_SIZE){
 			if (0 == dataArr[(start - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated){
 				//found a free page
-				start += PAGE_SIZE;
 				freeBytesFound += PAGE_SIZE;
 
 				if (freeBytesFound == size){
-					start -= size;
+					start -= size; //return start ptr properly
+					start += PAGE_SIZE;  //since start isnt incremented until the end of the iteration
 					break;
 				}
 				continue;
 			}
 			//need to look for another segment
-			start += PAGE_SIZE;
 			freeBytesFound = 0;
 		}
 	}
@@ -102,15 +100,14 @@ void* kmallocNextFit(uint32 size){
 	//begin the allocation
 	uint32 startAlloc = start;
 	uint32 szAlloc = 0;
-	while (szAlloc < size){
+	for (; szAlloc < size; szAlloc += PAGE_SIZE, startAlloc += PAGE_SIZE){
 		struct Frame_Info *ptr_frame_info = 0;
 		allocate_frame(&ptr_frame_info);
 		map_frame(ptr_page_directory, ptr_frame_info, (void*)startAlloc, PERM_PRESENT | PERM_WRITEABLE);
 		dataArr[(startAlloc - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated = freeBytesFound;
 		dataArr[(startAlloc - KERNEL_HEAP_START) / PAGE_SIZE].virtualAddr = start;
-		startAlloc += PAGE_SIZE;
-		szAlloc += PAGE_SIZE;
 	}
+
 	K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR = start + szAlloc;  //set the pointer to look just after this point of allocation
 
 	return (void*)start;
@@ -121,16 +118,14 @@ void kfree(void* virtual_address)
 	//TODO:DONE [PROJECT 2022 - [2] Kernel Heap] kfree()
 	uint32 startDeAlloc = ROUNDDOWN((uint32)virtual_address, PAGE_SIZE);
 
-	while (startDeAlloc < KERNEL_HEAP_MAX)
+	for (; startDeAlloc < KERNEL_HEAP_MAX; startDeAlloc += PAGE_SIZE)
 		if (0 != dataArr[(startDeAlloc - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated &&
 	       (uint32)virtual_address == dataArr[(startDeAlloc - KERNEL_HEAP_START) / PAGE_SIZE].virtualAddr){
 			unmap_frame(ptr_page_directory, (void*)startDeAlloc);
 			dataArr[(startDeAlloc - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated = 0;
 			dataArr[(startDeAlloc - KERNEL_HEAP_START) / PAGE_SIZE].virtualAddr = startDeAlloc;  //return the value to be the same during initialization
-			startDeAlloc += PAGE_SIZE;
 		}else
 			break;
-
 
 }
 
@@ -190,19 +185,24 @@ unsigned int kheap_virtual_address(unsigned int physical_address)
 
 unsigned int kheap_physical_address(unsigned int virtual_address)
 {
-	//TODO: [PROJECT 2022 - [4] Kernel Heap] kheap_physical_address()
-	// Write your code here, remove the panic and write your code
-	panic("kheap_physical_address() is not implemented yet...!!");
+	//TODO:DONE [PROJECT 2022 - [4] Kernel Heap] kheap_physical_address()
 
-	//return the physical address corresponding to given virtual_address
-	//refer to the project presentation and documentation for details
+    uint32 * pageTable = NULL;
+    get_page_table(ptr_page_directory, (void *)virtual_address, &pageTable);
 
-	//change this "return" according to your answer
+    if (pageTable == NULL)
+    	return 0;
 
-	struct Frame_Info * frameInfo = get_frame_info(ptr_page_directory, (void *)virtual_address, NULL);
-	if(frameInfo == NULL)
-		return 0;
-	return to_physical_address(frameInfo);
+    uint32 physAddr = pageTable[PTX(virtual_address)] >> 12;
+    physAddr *= PAGE_SIZE;
+
+    //extract offset from the va
+    uint32 offset = (virtual_address) & ~(~0 << 12);
+
+    //now attempt to add the offset
+    physAddr |= offset;
+
+    return physAddr;
 }
 
 
