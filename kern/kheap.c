@@ -20,7 +20,7 @@ uint8 firstRun = 1;
 
 void* kmalloc(unsigned int size)
 {
-	//TODO: [PROJECT 2022 - [1] Kernel Heap] kmalloc()
+	//TODO:DONE [PROJECT 2022 - [1] Kernel Heap] kmalloc()
     if (firstRun){
         initializeDataArr();
         firstRun = 0;
@@ -47,12 +47,10 @@ void* kmalloc(unsigned int size)
 
 void initializeDataArr(){
     //initialize the dataArr by setting all the addresses correctly
-
 	for (uint32 addr = KERNEL_HEAP_START; addr < KERNEL_HEAP_MAX; addr += PAGE_SIZE){
 		dataArr[(addr - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated = 0;
 		dataArr[(addr - KERNEL_HEAP_START) / PAGE_SIZE].virtualAddr = addr;
 	}
-
 }
 
 void* kmallocNextFit(uint32 size){
@@ -61,10 +59,9 @@ void* kmallocNextFit(uint32 size){
 	uint32 freeBytesFound = 0;
 
 	while (start < KERNEL_HEAP_MAX){
-		start += PAGE_SIZE;
-
 		if (0 == dataArr[(start - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated){
 			//found a free page
+			start += PAGE_SIZE;
 			freeBytesFound += PAGE_SIZE;
 
 			if (freeBytesFound == size){
@@ -73,12 +70,9 @@ void* kmallocNextFit(uint32 size){
 			}
             continue;
 		}
-
 		//need to look for another segment
+		start += PAGE_SIZE;
 		freeBytesFound = 0;
-//		if (end == K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR)
-//			end = start;
-
 	}
 
 	if (freeBytesFound != size){
@@ -86,10 +80,9 @@ void* kmallocNextFit(uint32 size){
 		start = KERNEL_HEAP_START;
 		freeBytesFound = 0;
 		while (start < end){
-			start += PAGE_SIZE;
-
 			if (0 == dataArr[(start - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated){
 				//found a free page
+				start += PAGE_SIZE;
 				freeBytesFound += PAGE_SIZE;
 
 				if (freeBytesFound == size){
@@ -98,11 +91,12 @@ void* kmallocNextFit(uint32 size){
 				}
 				continue;
 			}
-
+			//need to look for another segment
+			start += PAGE_SIZE;
 			freeBytesFound = 0;
-
 		}
 	}
+
 	if (freeBytesFound < size)return NULL;
 
 	//begin the allocation
@@ -124,12 +118,19 @@ void* kmallocNextFit(uint32 size){
 
 void kfree(void* virtual_address)
 {
-	//TODO: [PROJECT 2022 - [2] Kernel Heap] kfree()
-	// Write your code here, remove the panic and write your code
-	panic("kfree() is not implemented yet...!!");
+	//TODO:DONE [PROJECT 2022 - [2] Kernel Heap] kfree()
+	uint32 startDeAlloc = ROUNDDOWN((uint32)virtual_address, PAGE_SIZE);
 
-	//you need to get the size of the given allocation using its address
-	//refer to the project presentation and documentation for details
+	while (startDeAlloc < KERNEL_HEAP_MAX)
+		if (0 != dataArr[(startDeAlloc - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated &&
+	       (uint32)virtual_address == dataArr[(startDeAlloc - KERNEL_HEAP_START) / PAGE_SIZE].virtualAddr){
+			unmap_frame(ptr_page_directory, (void*)startDeAlloc);
+			dataArr[(startDeAlloc - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated = 0;
+			dataArr[(startDeAlloc - KERNEL_HEAP_START) / PAGE_SIZE].virtualAddr = startDeAlloc;  //return the value to be the same during initialization
+			startDeAlloc += PAGE_SIZE;
+		}else
+			break;
+
 
 }
 
