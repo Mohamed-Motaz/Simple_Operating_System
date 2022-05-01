@@ -546,7 +546,8 @@ void * create_page_table(uint32 *ptr_page_directory, const uint32 virtual_addres
 	for (int i = 0; i < 1024; i++)
 		pageTableArr[i] = 0;
 
-	ptr_page_directory[PDX(virtual_address)] = CONSTRUCT_ENTRY(
+	ptr_page_directory[PDX(virtual_address)] =
+			CONSTRUCT_ENTRY(
 			pageTablePa,
 			PERM_USER | PERM_PRESENT | PERM_WRITEABLE);
 
