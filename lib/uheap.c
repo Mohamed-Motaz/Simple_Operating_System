@@ -1,6 +1,22 @@
 
 #include <inc/lib.h>
 
+
+void intializeUserHeap();
+void* userHeapNextFitStrategy();
+void* userHeapBestFitStrategy();
+
+
+struct userHeapEntry{
+	uint32 virtualAddress;
+	uint32 startAddress;
+	bool used;
+};
+struct userHeapEntry userHeap[(USER_HEAP_MAX - USER_HEAP_START)/ PAGE_SIZE];
+uint32 USER_HEAP_NEXT_FIT_CURRENT_PTR = USER_HEAP_START;
+bool userHeapIntialized = 0;
+
+
 // malloc()
 //	This function use NEXT FIT strategy to allocate space in heap
 //  with the given size and return void pointer to the start of the allocated space
@@ -24,6 +40,10 @@ void* malloc(uint32 size)
 	// Write your code here, remove the panic and write your code
 	panic("malloc() is not implemented yet...!!");
 
+	if(!userHeapIntialized){
+			intializeUserHeap();
+			userHeapIntialized = 1;
+	}
 	// Steps:
 	//	1) Implement NEXT FIT strategy to search the heap for suitable space
 	//		to the required allocation size (space should be on 4 KB BOUNDARY)
@@ -70,6 +90,10 @@ void free(void* virtual_address)
 	//TODO: [PROJECT 2022 - [11] User Heap free()] [User Side]
 	// Write your code here, remove the panic and write your code
 	panic("free() is not implemented yet...!!");
+	if(!userHeapIntialized){
+		intializeUserHeap();
+		userHeapIntialized = 1;
+	}
 
 	//you shold get the size of the given allocation using its address
 	//you need to call sys_freeMem()
@@ -109,3 +133,18 @@ void *realloc(void *virtual_address, uint32 new_size)
 
 	return NULL;
 }
+
+
+
+void intializeUserHeap(){
+
+	for (uint32 addr = USER_HEAP_START; addr < USER_HEAP_MAX; addr += PAGE_SIZE){
+
+		int addrIndex = (addr - USER_HEAP_START) / PAGE_SIZE;
+		userHeap[addrIndex].startAddress = 0;
+		userHeap[addrIndex].virtualAddress = addr;
+		userHeap[addrIndex].used = 0;
+	}
+
+}
+
