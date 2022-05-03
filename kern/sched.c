@@ -88,6 +88,7 @@ struct Env* find_env_in_queue(struct Env_Queue* queue, uint32 envID)
 //============================= REQUIRED FUNCTIONS =================================//
 //==================================================================================//
 
+
 void sched_init_MLFQ(uint8 numOfLevels, uint8 *quantumOfEachLevel)
 {
 	//=========================================
@@ -100,11 +101,24 @@ void sched_init_MLFQ(uint8 numOfLevels, uint8 *quantumOfEachLevel)
 
 	//TODO: [PROJECT 2022 [7] CPU Scheduling MLFQ] Initialize MLFQ
 	// Write your code here, remove the panic and write your code
-	panic("sched_init_MLFQ() is not implemented yet...!!");
+	//panic("sched_init_MLFQ() is not implemented yet...!!");
 
+	// Not sure that is right
+
+
+	num_of_ready_queues = numOfLevels;
 	//[1] Create the ready queues and initialize them using init_queue()
+	struct Env_Queue *ReadyQueues = env_ready_queues;
+	for(int i = 0; i < numOfLevels; i++ ){
+		init_queue(ReadyQueues);
+		ReadyQueues++;
+	}
 	//[2] Create the "quantums" array and initialize it by the given quantums in "quantumOfEachLevel[]"
+	quantums = quantumOfEachLevel;
 	//[3] Set the CPU quantum by the first level one
+	kclock_set_quantum(*quantums) ;
+
+
 }
 
 
