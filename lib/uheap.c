@@ -115,15 +115,20 @@ void* userHeapBestFitStrategy(uint32 size){
 
 void* malloc(uint32 size)
 {
-	//TODO: [PROJECT 2022 - [9] User Heap malloc()] [User Side]
-	// Write your code here, remove the panic and write your code
-	panic("malloc() is not implemented yet...!!");
+	//TODO:DONE [PROJECT 2022 - [9] User Heap malloc()] [User Side]
 
 	if(!userHeapIntialized){
-			intializeUserHeap();
-			userHeapIntialized = 1;
+		intializeUserHeap();
+		userHeapIntialized = 1;
 	}
 	size = ROUNDUP(size, PAGE_SIZE);
+
+	uint32 address = (uint32)(sys_isUHeapPlacementStrategyNEXTFIT())?userHeapNextFitStrategy(size):userHeapBestFitStrategy(size);
+
+	if(address != NULL){
+		sys_allocateMem(address,size);
+	}
+	return address;
 	// Steps:
 	//	1) Implement NEXT FIT strategy to search the heap for suitable space
 	//		to the required allocation size (space should be on 4 KB BOUNDARY)
@@ -140,7 +145,6 @@ void* malloc(uint32 size)
 	//sys_isUHeapPlacementStrategyBESTFIT() for the bonus
 	//to check the current strategy
 
-	return NULL;
 }
 
 void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable)
