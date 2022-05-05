@@ -46,7 +46,6 @@ void* reserveInUserHeap(uint32 startAddress, uint32 size){
 
 void* userHeapNextFitStrategy(uint32 size){
 
-
 	for(uint32 addr = USER_HEAP_NEXT_FIT_CURRENT_PTR; addr < USER_HEAP_MAX; addr+= PAGE_SIZE){
 		uint32 freeSize = 0;
 		int addrIndex = (addr - USER_HEAP_START) / PAGE_SIZE;
@@ -185,6 +184,8 @@ void free(void* virtual_address)
 			userHeap[addrIndex].used=0;
 			userHeap[addrIndex].startAddress=0;
 		}
+		else
+			break;
 	}
 
 	sys_freeMem((uint32)virtual_address,size);
@@ -220,11 +221,15 @@ void sfree(void* virtual_address)
 
 void *realloc(void *virtual_address, uint32 new_size)
 {
-	//TODO: [PROJECT 2022 - BONUS3] User Heap Realloc [User Side]
-	// Write your code here, remove the panic and write your code
-	panic("realloc() is not implemented yet...!!");
+	//TODO:DONE [PROJECT 2022 - BONUS3] User Heap Realloc [User Side]
 
-	return NULL;
+	if(virtual_address == NULL)
+		return malloc(new_size);
+	if(!new_size){
+		free(virtual_address);
+		return virtual_address;
+	}
+	void* newVirtualAddress = userHeapNextFitStrategy(new_size);
+	if(newVirtualAddress != NULL)  sys_moveMem((uint32)virtual_address, (uint32)newVirtualAddress, new_size);
+	return newVirtualAddress;
 }
-
-
