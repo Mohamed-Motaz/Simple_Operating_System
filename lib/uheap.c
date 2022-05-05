@@ -87,13 +87,24 @@ void* sget(int32 ownerEnvID, char *sharedVarName)
 
 void free(void* virtual_address)
 {
-	//TODO: [PROJECT 2022 - [11] User Heap free()] [User Side]
+	//TODO:DONE [PROJECT 2022 - [11] User Heap free()] [User Side]
 	// Write your code here, remove the panic and write your code
-	panic("free() is not implemented yet...!!");
-	if(!userHeapIntialized){
-		intializeUserHeap();
-		userHeapIntialized = 1;
+	uint32 size=0;
+	uint32 va=(uint32)virtual_address;
+		if(!userHeapIntialized){
+			intializeUserHeap();
+			userHeapIntialized = 1;
+		}
+	for(int i=va;i<KERNEL_HEAP_MAX;i+=PAGE_SIZE ){
+
+		if(userHeap[i].used&&userHeap[i].startAddress==i){
+			size+=PAGE_SIZE;
+			userHeap[i].used=0;
+			userHeap[i].startAddress=0;
+		}
 	}
+
+	sys_freeMem(va,size);
 
 	//you shold get the size of the given allocation using its address
 	//you need to call sys_freeMem()
