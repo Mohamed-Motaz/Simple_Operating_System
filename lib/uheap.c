@@ -8,7 +8,6 @@ void* userHeapBestFitStrategy();
 void* reserveInUserHeap();
 
 
-
 struct userHeapEntry{
 	uint32 virtualAddress;
 	uint32 startAddress;
@@ -30,7 +29,6 @@ void intializeUserHeap(){
 		userHeap[addrIndex].used = 0;
 	}
 }
-
 void* reserveInUserHeap(uint32 startAddress, uint32 size){
 
 	int addrIndex = (startAddress - USER_HEAP_START) / PAGE_SIZE;
@@ -42,8 +40,6 @@ void* reserveInUserHeap(uint32 startAddress, uint32 size){
 	}
 	return (void*)userHeap[(addrIndex % numOfUserHeapEntries)].virtualAddress;
 }
-
-
 void* userHeapNextFitStrategy(uint32 size){
 
 	for(uint32 addr = USER_HEAP_NEXT_FIT_CURRENT_PTR; addr < USER_HEAP_MAX; addr+= PAGE_SIZE){
@@ -73,9 +69,8 @@ void* userHeapNextFitStrategy(uint32 size){
 	}
 	return NULL;
 }
-
 void* userHeapBestFitStrategy(uint32 size){
-	uint32 startAddress = NULL;
+	uint32 startAddress = 0;
 	uint32 minSize = PAGE_SIZE * (numOfUserHeapEntries + 1);
 	for(int addrIndex = 0; addrIndex < numOfUserHeapEntries; addrIndex++){
 		uint32 tempSize = 0;
