@@ -223,6 +223,8 @@ void *realloc(void *virtual_address, uint32 new_size)
 {
 	//TODO:DONE [PROJECT 2022 - BONUS3] User Heap Realloc [User Side]
 
+	new_size = ROUNDUP(new_size, PAGE_SIZE);
+
 	if(virtual_address == NULL)
 		return malloc(new_size);
 	if(!new_size){
