@@ -122,10 +122,10 @@ void* malloc(uint32 size)
 	}
 	size = ROUNDUP(size, PAGE_SIZE);
 
-	uint32 address = (uint32)(sys_isUHeapPlacementStrategyNEXTFIT())?userHeapNextFitStrategy(size):userHeapBestFitStrategy(size);
+	void* address = (sys_isUHeapPlacementStrategyNEXTFIT())?userHeapNextFitStrategy(size):userHeapBestFitStrategy(size);
 
 	if(address != NULL){
-		sys_allocateMem(address,size);
+		sys_allocateMem((uint32)address,size);
 	}
 	return address;
 	// Steps:
