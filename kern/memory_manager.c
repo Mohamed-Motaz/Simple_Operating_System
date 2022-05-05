@@ -744,7 +744,6 @@ void allocateMem(struct Env* e, uint32 virtual_address, uint32 size)
 
 	uint32 numberOfRequiredPages = size / PAGE_SIZE;
 	numberOfRequiredPages += (size % PAGE_SIZE != 0);
-	virtual_address = ROUNDDOWN(virtual_address, PAGE_SIZE);
 	int curPage = 0;
 	uint32 virtualAddress = virtual_address;
 	while (curPage < numberOfRequiredPages) {
