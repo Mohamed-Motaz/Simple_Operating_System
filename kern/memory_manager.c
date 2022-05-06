@@ -798,12 +798,21 @@ void moveMem(struct Env* e, uint32 src_virtual_address, uint32 dst_virtual_addre
 {
 	//TODO: [PROJECT 2022 - BONUS3] User Heap Realloc [Kernel Side]
 	//your code is here, remove the panic and write your code
-	panic("moveMem() is not implemented yet...!!");
+	//panic("moveMem() is not implemented yet...!!");
 
 	// This function should move all pages from "src_virtual_address" to "dst_virtual_address"
 	// with the given size
 	// After finishing, the src_virtual_address must no longer be accessed/exist in either page file
 	// or main memory
+	uint32 *source = (void*) src_virtual_address;
+	uint32 *destination = (void*) dst_virtual_address;
+	for (int i = 0; i < size; i++) {
+		for (int j = 0; j < 1024; j++) {
+			*destination = *source;
+			source++, destination++;
+
+		}
+	}
 }
 
 //==================================================================================================
