@@ -758,7 +758,7 @@ void allocateMem(struct Env* e, uint32 virtual_address, uint32 size)
 void freeMem(struct Env* e, uint32 virtual_address, uint32 size)
 {
 
-	//TODO: [PROJECT 2022 - [12] User Heap] freeMem() [Kernel Side]
+	//TODO:DONE [PROJECT 2022 - [12] User Heap] freeMem() [Kernel Side]
 	// Write your code here, remove the panic and write your code
 
 	uint32 va=virtual_address;
