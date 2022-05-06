@@ -512,10 +512,8 @@ void page_fault_handler(struct Env * curenv, uint32 fault_va)
 {
 	//TODO: [PROJECT 2022 - [6] PAGE FAULT HANDLER]
 	//env_page_ws_print(curenv);
+	//cprintf("hi1\n");
 
-
-	cprintf("=#1=#1====fault_va====> %x\n",fault_va);
-	env_page_ws_print(curenv);
 
 	//check if I need to replace anybody in the first place
 	if (env_page_ws_get_size(curenv) < curenv->page_WS_max_size){
@@ -532,7 +530,7 @@ void page_fault_handler(struct Env * curenv, uint32 fault_va)
 
 		//check if it is actually present in the page file in the first place
 		int res = pf_read_env_page(curenv, (void *)fault_va);
-
+		//cprintf("hi2\n");
 		if (res == E_PAGE_NOT_EXIST_IN_PF){
 			//this doesn't even exist in the page file!
 
@@ -552,41 +550,20 @@ void page_fault_handler(struct Env * curenv, uint32 fault_va)
 
 		uint32 idx = curenv->page_last_WS_index;
         placeInWS(curenv, fault_va, idx);
-
-
         return;
 	}
 
-
 	//now need to catch a victim
+	cprintf("hiiiiiii\n");
 	uint32 idx = modifiedClock(curenv);
-
-
-	uint32 victimVa = env_page_ws_get_virtual_address(curenv,idx);
-
-	uint32 *ptrPageTb = NULL;
-	get_page_table(curenv->env_page_directory,(void *)victimVa,&ptrPageTb);
-	if (ptrPageTb == NULL){ return; }
-
-	uint32 victimPa = (( ptrPageTb[PTX(victimVa)] ) >> 12) * PAGE_SIZE;
-
-	struct Frame_Info *frameInfo = to_frame_info(victimPa) ;
-	if (frameInfo == NULL){ return; }
-
-
-	map_frame(curenv->env_page_directory,frameInfo,(void *)fault_va,PERM_PRESENT | PERM_WRITEABLE | PERM_USER);
-
-	pt_set_page_permissions(curenv, (uint32)fault_va, 0, PERM_MODIFIED);
-
-
 	placeInWS(curenv, fault_va, idx);
-	cprintf("hi5\n");
+	cprintf("byeeeeee\n");
 
-	env_page_ws_print(curenv);
-	cprintf("=#2=#2====fault_va====> %x\n",fault_va);
 
 
 	//TODO: [PROJECT 2022 - BONUS4] Change WS Size according to Program Priority‌
+
+
 }
 
 void __page_fault_handler_with_buffering(struct Env * curenv, uint32 fault_va)
