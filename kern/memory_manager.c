@@ -747,7 +747,10 @@ void allocateMem(struct Env* e, uint32 virtual_address, uint32 size)
 	int curPage = 0;
 	uint32 virtualAddress = virtual_address;
 	while (curPage < numberOfRequiredPages) {
-		pf_add_empty_env_page(e, virtualAddress, 0);
+		int pageStatus = pf_add_empty_env_page(e, virtualAddress, 0);
+		if (pageStatus == E_NO_PAGE_FILE_SPACE) {
+			panic("No page file space");
+		}
 		curPage++;
 		virtualAddress += PAGE_SIZE;
 	}
