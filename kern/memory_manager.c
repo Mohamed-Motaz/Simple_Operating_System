@@ -760,8 +760,16 @@ void freeMem(struct Env* e, uint32 virtual_address, uint32 size)
 
 	//TODO: [PROJECT 2022 - [12] User Heap] freeMem() [Kernel Side]
 	// Write your code here, remove the panic and write your code
-	panic("freeMem() is not implemented yet...!!");
 
+	uint32 va=virtual_address;
+while(size)
+{
+	pf_remove_env_page(e, va);
+	va+=PAGE_SIZE;
+	size-=PAGE_SIZE;
+
+}
+kfree(virtual_address);
 	//This function should:
 	//1. Free ALL pages of the given range from the Page File
 	//2. Free ONLY pages that are resident in the working set from the memory
