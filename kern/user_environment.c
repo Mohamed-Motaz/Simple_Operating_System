@@ -719,7 +719,7 @@ void start_env_free(struct Env *e)
 }
 void env_free(struct Env *e)
 {
-	//TODO: [PROJECT 2022 - BONUS 2] Exit [env_free()]
+	//TODO DONE BUT DOESN'T SUCCESS [PROJECT 2022 - BONUS 2] Exit [env_free()]
 
 	//YOUR CODE STARTS HERE, remove the panic and write your code ----
 	panic("env_free() is not implemented yet...!!");
