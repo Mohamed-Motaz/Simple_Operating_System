@@ -13,8 +13,8 @@ struct userHeapEntry{
 	uint32 startAddress;
 	bool used;
 };
-int numOfUserHeapEntries = (USER_HEAP_MAX - USER_HEAP_START)/ PAGE_SIZE;
-struct userHeapEntry userHeap[(USER_HEAP_MAX - USER_HEAP_START)/ PAGE_SIZE];
+int numOfUserHeapEntries = (USER_HEAP_MAX - USER_HEAP_START)/ PAGE_SIZE + 1;
+struct userHeapEntry userHeap[(USER_HEAP_MAX - USER_HEAP_START)/ PAGE_SIZE + 1];
 uint32 USER_HEAP_NEXT_FIT_CURRENT_PTR = USER_HEAP_START;
 bool userHeapIntialized = 0;
 
