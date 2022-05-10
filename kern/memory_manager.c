@@ -747,7 +747,10 @@ void allocateMem(struct Env* e, uint32 virtual_address, uint32 size)
 	int curPage = 0;
 	uint32 virtualAddress = virtual_address;
 	while (curPage < numberOfRequiredPages) {
-		pf_add_empty_env_page(e, virtualAddress, 0);
+		int pageStatus = pf_add_empty_env_page(e, virtualAddress, 0);
+		if (pageStatus == E_NO_PAGE_FILE_SPACE) {
+			panic("No page file space");
+		}
 		curPage++;
 		virtualAddress += PAGE_SIZE;
 	}
@@ -760,20 +763,56 @@ void freeMem(struct Env* e, uint32 virtual_address, uint32 size)
 
 	//TODO:DONE [PROJECT 2022 - [12] User Heap] freeMem() [Kernel Side]
 
-	uint32 addr = virtual_address;
-    while(size){
-
-    	pf_remove_env_page(e, addr);
-    	addr+= PAGE_SIZE;
-    	size-= PAGE_SIZE;
-    }
-    kfree((void*)virtual_address);
 	//This function should:
 	//1. Free ALL pages of the given range from the Page File
 	//2. Free ONLY pages that are resident in the working set from the memory
 	//3. Removes ONLY the empty page tables (i.e. not used) (no pages are mapped in the table)
 	//   remember that the page table was created using kmalloc so it should be removed using kfree()
 
+	uint32 tempVirtualAddress = virtual_address, tempSize = size;
+	while (tempSize) {
+		// 1. Free ALL pages of the given range from the Page File
+		pf_remove_env_page(e, tempVirtualAddress); // Remove an existing environment page at the given virtual address from the page file.
+		// 2. Free ONLY pages that are resident in the working set from the memory
+		for (int entryIndex = 0; entryIndex < (e->page_WS_max_size); entryIndex++) {
+			if (e->ptr_pageWorkingSet[entryIndex].virtual_address == tempVirtualAddress) {
+				unmap_frame(e->env_page_directory,
+						(void*) (e->ptr_pageWorkingSet[entryIndex].virtual_address));
+				env_page_ws_clear_entry(e, entryIndex); // Clears (make empty) the entry at “entry_index” in “e” working set
+				break;
+			}
+		}
+		tempVirtualAddress += PAGE_SIZE;
+		tempSize -= PAGE_SIZE;
+	}
+	//3. Removes ONLY the empty page tables
+	uint32 curDir = PDX(virtual_address);
+	uint32 lastDir = PDX(ROUNDUP((virtual_address + size), PAGE_SIZE));
+	bool isCurTableEmpty = 1;
+	while (curDir <= lastDir) {
+		uint32 *ptrToPageTable;
+		// curDir << 22 to add 22 bits for page idx & offset
+		// VA (10 bits for dirIdx, 10 bits for pageIdx, 12 bits for offset)
+		get_page_table(e->env_page_directory, (void*) (curDir << 22),
+				&ptrToPageTable);
+		// check if page table exists
+		if (ptrToPageTable != NULL) {
+			for (int entryIndex = 0; entryIndex < 1024 && isCurTableEmpty; entryIndex++) {
+				if (ptrToPageTable[entryIndex] != 0)
+					isCurTableEmpty = 0;
+			}
+			if (isCurTableEmpty == 1) {
+				//that mean table is empty
+				kfree((void*) ptrToPageTable);
+				// takes ptrToEnv -> e, VA -> (curTable << 22)
+				pd_clear_page_dir_entry(e, (curDir << 22));
+				// function do that -> the page table, which contains the given virtual address
+				// becomes no longer exists in the whole system. Delete the table from the page.
+			}
+			isCurTableEmpty = 1;
+		}
+		curDir++;
+	}
 }
 
 void __freeMem_with_buffering(struct Env* e, uint32 virtual_address, uint32 size)
@@ -796,7 +835,7 @@ void __freeMem_with_buffering(struct Env* e, uint32 virtual_address, uint32 size
 
 void moveMem(struct Env* e, uint32 src_virtual_address, uint32 dst_virtual_address, uint32 size)
 {
-	//TODO: [PROJECT 2022 - BONUS3] User Heap Realloc [Kernel Side]
+	//TODO DONE BUT DOESN'T SUCCESS [PROJECT 2022 - BONUS3] User Heap Realloc [Kernel Side]
 	//your code is here, remove the panic and write your code
 	//panic("moveMem() is not implemented yet...!!");
 

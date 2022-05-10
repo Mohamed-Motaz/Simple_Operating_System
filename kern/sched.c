@@ -99,7 +99,7 @@ void sched_init_MLFQ(uint8 numOfLevels, uint8 *quantumOfEachLevel)
 	//=========================================
 	//=========================================
 
-	//TODO: [PROJECT 2022 [7] CPU Scheduling MLFQ] Initialize MLFQ
+	//TODO DONE BUT NOT TESTED DEPENDS ON TASK 8 [PROJECT 2022 [7] CPU Scheduling MLFQ] Initialize MLFQ
 	// Write your code here, remove the panic and write your code
 	//panic("sched_init_MLFQ() is not implemented yet...!!");
 
