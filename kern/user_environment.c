@@ -717,55 +717,66 @@ void start_env_free(struct Env *e)
 		env_free(e);
 	}
 }
-void env_free(struct Env *e)
-{
-	//TODO DONE BUT DOESN'T SUCCESS [PROJECT 2022 - BONUS 2] Exit [env_free()]
-
-	//YOUR CODE STARTS HERE, remove the panic and write your code ----
-	panic("env_free() is not implemented yet...!!");
+void env_free(struct Env *e) {
+	//TODO DONE [PROJECT 2022 - BONUS 2] Exit [env_free()]
 
 	// [1] Free the pages in the PAGE working set from the main memory
 	// [2] Free the PAGE working set array itself from the main memory
 	// [3] Free all TABLES from the main memory
 	// [4] Free the page DIRECTORY from the main memory
+
 	// [1] Free the pages in the PAGE working set from the main memory
-		uint32 sizeOfWorkingSet = e->page_WS_max_size;
-		uint32 entryIndex = 0;
-		while (entryIndex < sizeOfWorkingSet) {
-			// env_page_ws_is_entry_empty returns 0 or 1
-			// 0: if the working set entry at Â“entry _indexÂ” is NOT empty
-			// 1: if the working set entry at Â“entry _indexÂ” is empty
-			if (env_page_ws_is_entry_empty(e, entryIndex) == 0) {
-				env_page_ws_clear_entry(e, entryIndex);
-				uint32 virtualAddress = env_page_ws_get_virtual_address(e,
-						entryIndex);
+	uint32 sizeOfWorkingSet = e->page_WS_max_size;
+	uint32 entryIndex = 0;
+	for (uint32 entryIndex = 0; entryIndex < sizeOfWorkingSet; entryIndex++) {
+		// env_page_ws_is_entry_empty returns 0 or 1
+		// 0: if the working set entry at “entry _index” is NOT empty
+		// 1: if the working set entry at “entry _index” is empty
+		if (env_page_ws_is_entry_empty(e, entryIndex) == 0) {
+			uint32 virtualAddress = env_page_ws_get_virtual_address(e,
+					entryIndex);
+			if ((void*) virtualAddress != NULL)
 				unmap_frame(e->env_page_directory, (void*) virtualAddress);
-			}
-			entryIndex++;
+			env_page_ws_clear_entry(e, entryIndex);
 		}
-		// [2] Free the PAGE working set array itself from the main memory
-		struct WorkingSetElement* ptrToPageWorkingSet = e->ptr_pageWorkingSet;
-		kfree((void*) ptrToPageWorkingSet);
-		// [3] Free all TABLES from the main memory
-		uint32 curVirtualAddress = 0;
-		while (curVirtualAddress < USER_TOP) {
-			uint32 *ptrToPageTable = NULL;
-			get_page_table(e->env_page_directory, (void*) curVirtualAddress,
-					&ptrToPageTable);
-			if (ptrToPageTable != NULL) {
-				// The page table, which contains curVirtualAddress, becomes no longer exists in the whole system
-				// pd_clear_page_dir_entry(e, (uint32)curVirtualAddress);
-				// unmap_frame(e->env_page_directory, (void*) ptrToPageTable);
-				unsigned int physicalAddressOfPage = kheap_physical_address(
-						(uint32) ptrToPageTable);
-				struct Frame_Info *ptrToFrameInfo = to_frame_info(
-						physicalAddressOfPage);
-				free_frame(ptrToFrameInfo);
-			}
-			curVirtualAddress += PAGE_SIZE * 1024;
+	}
+	uint32 *ptrToPageTable = NULL;
+	for (uint32 curVirtualAddress = 0; curVirtualAddress < USER_TOP;
+			curVirtualAddress += PAGE_SIZE) {
+		struct Frame_Info *ptrToFrameInfo = get_frame_info(
+				e->env_page_directory, (void*) curVirtualAddress,
+				&ptrToPageTable);
+		if (ptrToFrameInfo != NULL) {
+			free_frame(ptrToFrameInfo);
 		}
-		// [4] Free the page DIRECTORY from the main memory
-		kfree(e->env_page_directory);
+		if ((void*) curVirtualAddress != NULL) {
+			unmap_frame(e->env_page_directory, (void*) curVirtualAddress);
+		}
+		// Remove an existing environment page at the given virtual address from the page file.
+		pf_remove_env_page(e, curVirtualAddress);
+	}
+	// [2] Free the PAGE working set array itself from the main memory
+	struct WorkingSetElement* ptrToPageWorkingSet = e->ptr_pageWorkingSet;
+	kfree((void*) ptrToPageWorkingSet);
+	// [3] Free all TABLES from the main memory
+	uint32 curVirtualAddress = 0;
+	while (curVirtualAddress < USER_TOP) {
+		get_page_table(e->env_page_directory, (void*) curVirtualAddress,
+				&ptrToPageTable);
+		if (ptrToPageTable != NULL) {
+			// The page table, which contains curVirtualAddress, becomes no longer exists in the whole system
+			// pd_clear_page_dir_entry(e, (uint32)curVirtualAddress);
+			// unmap_frame(e->env_page_directory, (void*) ptrToPageTable);
+			unsigned int physicalAddressOfPage = kheap_physical_address(
+					(uint32) ptrToPageTable);
+			struct Frame_Info *ptrToFrameInfo = to_frame_info(
+					physicalAddressOfPage);
+			free_frame(ptrToFrameInfo);
+		}
+		curVirtualAddress += PAGE_SIZE * 1024;
+	}
+	// [4] Free the page DIRECTORY from the main memory
+	kfree(e->env_page_directory);
 
 	//Don't change these lines:
 	pf_free_env(e); /*(ALREADY DONE for you)*/ // (removes all of the program pages from the page file)
