@@ -70,7 +70,6 @@ void* kmallocNextFit(uint32 size){
 	uint32 end = curAddr;     //end is start as path may be circular
 	uint32 freeBytesFound = 0;
 
-	//todo fix this stupid loop
 	for ( ;curAddr < KERNEL_HEAP_MAX; curAddr += PAGE_SIZE){
 		if (dataArr[dataArrIdx(curAddr)].numBytesAllocated == 0){
 			//found a free page

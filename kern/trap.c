@@ -14,7 +14,7 @@
 #include <kern/trap.h>
 
 //our new helper functions
-uint32 modifiedClock(struct Env * curenv);
+uint32 modifiedClock(struct Env * curenv, uint32);
 void placeInWS(struct Env *, uint32, uint32);
 uint8 isStackPage(uint32);
 
@@ -451,9 +451,13 @@ void table_fault_handler(struct Env * curenv, uint32 fault_va)
 
 }
 
-uint32 modifiedClock(struct Env * curenv){
+uint32 modifiedClock(struct Env * curenv, uint32 fault_va){
+	//now attempt to find an idx
+	//cprintf("in\n");
+	uint32 idx = -1;
 	while (1 == 1){
 		//try1  =================================================================================================
+		//cprintf("try 1\n");
 		uint32 tmp = curenv->page_last_WS_index;
 		do{
             uint32 va = env_page_ws_get_virtual_address(curenv, curenv->page_last_WS_index);
@@ -465,14 +469,17 @@ uint32 modifiedClock(struct Env * curenv){
 					((permissions & PERM_MODIFIED) == 0)
 				){
             	//found a victim
-            	return curenv->page_last_WS_index;
+            	idx = curenv->page_last_WS_index;
+            	break;
             }
              //todo do i need to set the perm used to zero here?
 			curenv->page_last_WS_index++;
 			curenv->page_last_WS_index %= curenv->page_WS_max_size;
 		}while(curenv->page_last_WS_index != tmp);
-
+        if (idx != -1)  //found a result
+        	break;
 		//try2  =================================================================================================
+		//cprintf("try 2\n");
 		do{
 			uint32 va = env_page_ws_get_virtual_address(curenv, curenv->page_last_WS_index);
 			uint32 permissions = pt_get_page_permissions(curenv, va);
@@ -481,17 +488,80 @@ uint32 modifiedClock(struct Env * curenv){
 					((permissions & PERM_USED) == 0)
 				){
 				//found a victim
-				return curenv->page_last_WS_index;
+				idx = curenv->page_last_WS_index;
+				break;
 			}
             //need to set the used to be 0
 			pt_set_page_permissions(curenv, va, 0, PERM_USED);
 			curenv->page_last_WS_index++;
 			curenv->page_last_WS_index %= curenv->page_WS_max_size;
 		}while(curenv->page_last_WS_index != tmp);
+
+		if (idx != -1)  //found a result
+		        	break;
 	}
-    return 0;
+    //cprintf("out\n");
+
+	//use the idx and empty the victim
+	uint32 victimVa = env_page_ws_get_virtual_address(curenv,idx);
+
+	uint32 *ptrPageTb = NULL;  //not needed but needs to be present to use get_frame_info
+	struct Frame_Info *frameInfo = get_frame_info(curenv->env_page_directory, (void *) victimVa, &ptrPageTb);
+	if (frameInfo == NULL || ptrPageTb == NULL)
+	    return -1;
+
+	pt_set_page_permissions(curenv, (uint32)fault_va, 0, PERM_MODIFIED);
+	//so make sure the new page is not modified
+
+	//get perms of victim to update it to disk if necessary
+    uint32 perms = pt_get_page_permissions(curenv, victimVa);
+
+    if((perms & PERM_MODIFIED) > 0)
+	    pf_update_env_page(curenv,(void*)victimVa, frameInfo) ;
+
+    //unmap the old frame and invalidate it
+	unmap_frame(curenv->env_page_directory,(void*) victimVa);
+
+	env_page_ws_invalidate(curenv, victimVa);
+
+	return idx; //success finally
+
 }
 
+//allocate a frame and map it to the fault va
+//then read the fault_va from the page file
+//if i can't then I need to check if it is a stack page
+void preparePlacingInWs(struct Env * curenv, uint32 fault_va, uint32 idx){
+	struct Frame_Info *frameInfo = NULL;
+	allocate_frame(&frameInfo);    //panics so no error to handle
+	map_frame(curenv->env_page_directory,
+			frameInfo, (void *)fault_va,
+			PERM_PRESENT | PERM_WRITEABLE | PERM_USER);
+
+
+	//check if it is actually present in the page file in the first place
+	int res = pf_read_env_page(curenv, (void *)fault_va);
+
+	if (res == E_PAGE_NOT_EXIST_IN_PF){
+		//this doesn't even exist in the page file!
+
+		//if a stack page, must try to add it
+		//else panic if fail
+
+		if (isStackPage(fault_va)){
+			//can safely add a page, since this is for the stack
+			pf_add_empty_env_page(curenv, fault_va, (uint8)1);
+
+		}else{
+			//not present in the program itself, must be invalid
+			panic("this virtual address is invalid! no such address exists for this program");
+		}
+
+	}
+
+}
+
+//just place the data in the ws
 void placeInWS(struct Env * curenv, uint32 fault_va, uint32 idx){
 	env_page_ws_set_entry(curenv, idx, fault_va);
 	//increase the ws index
@@ -510,60 +580,34 @@ uint8 isStackPage(uint32 va){
 
 void page_fault_handler(struct Env * curenv, uint32 fault_va)
 {
-	//TODO DONE BUT DOESN'T SUCCESS [PROJECT 2022 - [6] PAGE FAULT HANDLER]
+	//TODO DONE: [PROJECT 2022 - [6] PAGE FAULT HANDLER]
 	//env_page_ws_print(curenv);
-	//cprintf("hi1\n");
 
+
+	//cprintf("=#1=#1====fault_va====> %x\n",fault_va);
+	//env_page_ws_print(curenv);
+
+	uint32 idx = -1;
 
 	//check if I need to replace anybody in the first place
-	if (env_page_ws_get_size(curenv) < curenv->page_WS_max_size){
-		//add to the working set without choosing a victim
+	if (env_page_ws_get_size(curenv) < curenv->page_WS_max_size)
+		idx = curenv->page_last_WS_index;
+	else
+		//now need to catch a victim
+	    idx = modifiedClock(curenv, fault_va);
 
-		///allocate a frame  =========================================================
-		struct Frame_Info *frameInfo = NULL;
-		allocate_frame(&frameInfo);    //panics so no error to handle
-		map_frame(curenv->env_page_directory,
-				frameInfo, (void *)fault_va,
-				PERM_PRESENT | PERM_WRITEABLE | PERM_USER);
-		///allocate a frame end  =========================================================
+	if (idx == -1) //failure occured
+		return;
 
-
-		//check if it is actually present in the page file in the first place
-		int res = pf_read_env_page(curenv, (void *)fault_va);
-		//cprintf("hi2\n");
-		if (res == E_PAGE_NOT_EXIST_IN_PF){
-			//this doesn't even exist in the page file!
-
-			//if a stack page, must try to add it
-			//else panic if fail
-
-			if (isStackPage(fault_va)){
-				//can safely add a page, since this is for the stack
-				pf_add_empty_env_page(curenv, fault_va, (uint8)1);
-
-			}else{
-				//not present in the program itself, must be invalid
-				panic("this virtual address is invalid! no such address exists for this program");
-			}
-
-		}
-
-		uint32 idx = curenv->page_last_WS_index;
-        placeInWS(curenv, fault_va, idx);
-        return;
-	}
-
-	//now need to catch a victim
-	cprintf("hiiiiiii\n");
-	uint32 idx = modifiedClock(curenv);
+	preparePlacingInWs(curenv, fault_va, idx);
 	placeInWS(curenv, fault_va, idx);
-	cprintf("byeeeeee\n");
 
+
+	//env_page_ws_print(curenv);
+	//cprintf("=#2=#2====fault_va====> %x\n",fault_va);
 
 
 	//TODO: [PROJECT 2022 - BONUS4] Change WS Size according to Program Priority‌
-
-
 }
 
 void __page_fault_handler_with_buffering(struct Env * curenv, uint32 fault_va)
@@ -572,4 +616,3 @@ void __page_fault_handler_with_buffering(struct Env * curenv, uint32 fault_va)
 	panic("this function is not required...!!");
 
 }
-
