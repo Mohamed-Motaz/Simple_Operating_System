@@ -66,19 +66,19 @@ uint32 dataArrIdx(uint32 addr){
 }
 
 void* kmallocNextFit(uint32 size){
-	uint32 start = K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR;
-	uint32 end = start;     //end is start as path may be circular
+	uint32 curAddr = K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR;
+	uint32 end = curAddr;     //end is start as path may be circular
 	uint32 freeBytesFound = 0;
 
 	//todo fix this stupid loop
-	for ( ;start < KERNEL_HEAP_MAX; start += PAGE_SIZE){
-		if (dataArr[dataArrIdx(start)].numBytesAllocated == 0){
+	for ( ;curAddr < KERNEL_HEAP_MAX; curAddr += PAGE_SIZE){
+		if (dataArr[dataArrIdx(curAddr)].numBytesAllocated == 0){
 			//found a free page
 			freeBytesFound += PAGE_SIZE;
 
 			if (freeBytesFound == size){
-				start -= size;//return start ptr properly
-				start += PAGE_SIZE; //since start isnt incremented until the end of the iteration
+				curAddr -= size;//return curAddr ptr properly
+				curAddr += PAGE_SIZE; //since curAddr isnt incremented until the end of the iteration
 				break;
 			}
             continue;
@@ -89,16 +89,16 @@ void* kmallocNextFit(uint32 size){
 
 	//retry from the start of the heap
 	if (freeBytesFound != size){
-		start = KERNEL_HEAP_START;
+		curAddr = KERNEL_HEAP_START;
 		freeBytesFound = 0;
-		for ( ;start < end; start += PAGE_SIZE){
-			if (0 == dataArr[(start - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated){
+		for ( ;curAddr < end; curAddr += PAGE_SIZE){
+			if (0 == dataArr[dataArrIdx(curAddr)].numBytesAllocated){
 				//found a free page
 				freeBytesFound += PAGE_SIZE;
 
 				if (freeBytesFound == size){
-					start -= size; //return start ptr properly
-					start += PAGE_SIZE;  //since start isnt incremented until the end of the iteration
+					curAddr -= size; //return curAddr ptr properly
+					curAddr += PAGE_SIZE;  //since curAddr isnt incremented until the end of the iteration
 					break;
 				}
 				continue;
@@ -111,20 +111,20 @@ void* kmallocNextFit(uint32 size){
 	if (freeBytesFound < size)return NULL;
 
 	//begin the allocation
-	uint32 startAlloc = start;
+	uint32 startAlloc = curAddr;
 	uint32 szAlloc = 0;
 	for (; szAlloc < size; szAlloc += PAGE_SIZE, startAlloc += PAGE_SIZE){
 		struct Frame_Info *ptr_frame_info = 0;
 		allocate_frame(&ptr_frame_info);
 		map_frame(ptr_page_directory, ptr_frame_info, (void*)startAlloc, PERM_PRESENT | PERM_WRITEABLE);
 		dataArr[dataArrIdx(startAlloc)].numBytesAllocated = freeBytesFound;
-		dataArr[dataArrIdx(startAlloc)].virtualAddr = start;
+		dataArr[dataArrIdx(startAlloc)].virtualAddr = curAddr;
 		dataArr[dataArrIdx(startAlloc)].physAddr = kheap_physical_address(startAlloc);
 	}
 
-	K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR = start + szAlloc;  //set the pointer to look just after this point of allocation
+	K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR = curAddr + szAlloc;  //set the pointer to look just after this point of allocation
 
-	return (void*)start;
+	return (void*)curAddr;
 }
 
 void* kmallocBestFit(uint32 size){
