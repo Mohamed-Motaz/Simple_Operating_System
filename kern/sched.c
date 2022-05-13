@@ -99,24 +99,20 @@ void sched_init_MLFQ(uint8 numOfLevels, uint8 *quantumOfEachLevel)
 	//=========================================
 	//=========================================
 
-	//TODO DONE BUT NOT TESTED DEPENDS ON TASK 8 [PROJECT 2022 [7] CPU Scheduling MLFQ] Initialize MLFQ
-	// Write your code here, remove the panic and write your code
-	//panic("sched_init_MLFQ() is not implemented yet...!!");
-
-	// Not sure that is right
-
+	//TODO DONE TASK 8 [PROJECT 2022 [7] CPU Scheduling MLFQ] Initialize MLFQ
 
 	num_of_ready_queues = numOfLevels;
-	//[1] Create the ready queues and initialize them using init_queue()
 	struct Env_Queue *ReadyQueues = env_ready_queues;
-	for(int i = 0; i < numOfLevels; i++ ){
-		init_queue(ReadyQueues);
-		ReadyQueues++;
+	for(int queueNumber = 0; queueNumber < num_of_ready_queues; queueNumber++){
+		//[1] Create the ready queues and initialize them using init_queue()
+		struct Env_Queue newQueue;
+		init_queue(&newQueue);
+		env_ready_queues[queueNumber] = newQueue;
+		//[2] Create the "quantums" array and initialize it by the given quantums in "quantumOfEachLevel[]"
+		quantums[queueNumber] = quantumOfEachLevel[queueNumber];
 	}
-	//[2] Create the "quantums" array and initialize it by the given quantums in "quantumOfEachLevel[]"
-	quantums = quantumOfEachLevel;
 	//[3] Set the CPU quantum by the first level one
-	kclock_set_quantum(*quantums) ;
+	kclock_set_quantum(quantums[0]);
 
 
 }
@@ -124,9 +120,7 @@ void sched_init_MLFQ(uint8 numOfLevels, uint8 *quantumOfEachLevel)
 
 struct Env* fos_scheduler_MLFQ()
 {
-	//TODO: [PROJECT 2022 [8] CPU Scheduling MLFQ] MLFQ Scheduler
-	// Write your code here, remove the panic and write your code
-	panic("fos_scheduler_MLFQ() is not implemented yet...!!");
+	//TODO:DONE [PROJECT 2022 [8] CPU Scheduling MLFQ] MLFQ Scheduler
 
 	//Apply the MLFQ with the specified levels to pick up the next environment
 	//Note: the "curenv" (if exist) should be placed in its correct queue
@@ -134,15 +128,37 @@ struct Env* fos_scheduler_MLFQ()
 	//Steps:
 	//======
 	//[1] If the current environment (curenv) exists, place it in the suitable queue
+	for(int queueNumber = 0; queueNumber < num_of_ready_queues; queueNumber++){
 
+		if(find_env_in_queue(&env_ready_queues[queueNumber], curenv->env_id)){
+
+			if(queueNumber != num_of_ready_queues - 1){
+				remove_from_queue(&env_ready_queues[queueNumber],curenv);
+				enqueue(&env_ready_queues[queueNumber+1],curenv);
+			}
+			else{
+				remove_from_queue(&env_ready_queues[queueNumber],curenv);
+				enqueue(&env_ready_queues[queueNumber],curenv);
+			}
+			break;
+		}
+	}
+	struct Env* nextEnv = NULL;
 	//[2] Search for the next env in the queues according to their priorities (first is highest)
-
 	//[3] If next env is found: Set the CPU quantum by the quantum of the selected level
-	//							,remove the selected env from its queue and return it
+	//	  ,remove the selected env from its queue and return it
 	//	  Else, return NULL
+	for(int queueNumber = 0; queueNumber < num_of_ready_queues; queueNumber++){
 
-	return NULL;
+		if(queue_size(&env_ready_queues[queueNumber])){
+			nextEnv = LIST_FIRST(&env_ready_queues[queueNumber]);
+			remove_from_queue(&env_ready_queues[queueNumber], nextEnv);
+			kclock_set_quantum(quantums[queueNumber]);
+		}
+	}
 
+
+	return nextEnv;
 }
 
 

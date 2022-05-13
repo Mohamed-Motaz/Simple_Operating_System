@@ -836,25 +836,30 @@ void __freeMem_with_buffering(struct Env* e, uint32 virtual_address, uint32 size
 void moveMem(struct Env* e, uint32 src_virtual_address, uint32 dst_virtual_address, uint32 size)
 {
 	//TODO DONE BUT DOESN'T SUCCESS [PROJECT 2022 - BONUS3] User Heap Realloc [Kernel Side]
-	//your code is here, remove the panic and write your code
-	//panic("moveMem() is not implemented yet...!!");
 
 	// This function should move all pages from "src_virtual_address" to "dst_virtual_address"
 	// with the given size
 	// After finishing, the src_virtual_address must no longer be accessed/exist in either page file
 	// or main memory
-	uint32 *source = (void*) src_virtual_address;
-	uint32 *destination = (void*) dst_virtual_address;
-	for (int i = 0; i < size; i++) {
-		for (int j = 0; j < 1024; j++) {
-			*destination = *source;
-			source++, destination++;
 
-		}
+	while(size){
+		pf_add_empty_env_page(e, src_virtual_address, 1);
+		pf_add_env_page(e, dst_virtual_address,(void*)src_virtual_address);
+		/*pf_remove_env_page(e, src_virtual_address);
+		for (int entryIndex = 0; entryIndex < (e->page_WS_max_size); entryIndex++) {
+			if (e->ptr_pageWorkingSet[entryIndex].virtual_address == src_virtual_address) {
+				unmap_frame(e->env_page_directory,(void*) (e->ptr_pageWorkingSet[entryIndex].virtual_address));
+				env_page_ws_clear_entry(e, entryIndex);
+				break;
+			}
+		}*/
+		dst_virtual_address+= PAGE_SIZE;
+	    src_virtual_address+= PAGE_SIZE;
+		size-=PAGE_SIZE;
 	}
-}
 
-//==================================================================================================
+
+}
 
 //==================================================================================================
 //==================================================================================================
