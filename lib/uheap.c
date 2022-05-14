@@ -8,6 +8,7 @@ void* userHeapBestFitStrategy();
 void* reserveInUserHeap();
 uint32 freeFromUserHeap();
 uint32 userHeapIndex();
+uint32 absoluteValue();
 
 struct userHeapEntry{
 	uint32 virtualAddress;
@@ -22,6 +23,10 @@ bool userHeapIntialized = 0;
 
 uint32 userHeapIndex(uint32 addr){
 	return (addr - USER_HEAP_START) / PAGE_SIZE;
+}
+
+uint32 absoluteValue(uint32 value){
+	return (value<0)? (value*-1) : value;
 }
 
 void intializeUserHeap(){
@@ -228,8 +233,10 @@ void sfree(void* virtual_address)
 
 void *realloc(void *virtual_address, uint32 new_size)
 {
-	//TODO:DONE BUT DOESN'T SUCCESS [PROJECT 2022 - BONUS3] User Heap Realloc [User Side]
+	//TODO: [PROJECT 2022 - BONUS3] User Heap Realloc [User Side]
 
+
+	virtual_address = ROUNDDOWN(virtual_address,PAGE_SIZE);
 	new_size = ROUNDUP(new_size, PAGE_SIZE);
 
 	if(virtual_address == NULL)
@@ -238,9 +245,55 @@ void *realloc(void *virtual_address, uint32 new_size)
 		free(virtual_address);
 		return NULL;
 	}
-	void* newVirtualAddress = (sys_isUHeapPlacementStrategyNEXTFIT())?userHeapNextFitStrategy(new_size):userHeapBestFitStrategy(new_size);
-	uint32 size = freeFromUserHeap(virtual_address);
+	uint32 oldSize = freeFromUserHeap(virtual_address), freeSize = 0;
+	for(int addIndex = userHeapIndex((uint32)virtual_address); addIndex < numOfUserHeapEntries; addIndex++){
+        if(userHeap[addIndex].startAddress == 0){
+			freeSize+=PAGE_SIZE;
+		}
+		else
+			break;
+	}
+	void* newVirtualAddress = virtual_address;
+	uint32 sizeDiff = absoluteValue(oldSize-new_size);
+	if(oldSize >= new_size){
+		USER_HEAP_NEXT_FIT_CURRENT_PTR = (uint32)reserveInUserHeap((uint32)virtual_address, new_size);
+		sys_moveMem(((uint32)virtual_address+sizeDiff),(uint32)NULL,sizeDiff);
+	}
+	else if(new_size <= oldSize + freeSize){
+		USER_HEAP_NEXT_FIT_CURRENT_PTR = (uint32)reserveInUserHeap((uint32)virtual_address, new_size);
+		sys_moveMem((uint32)NULL,((uint32)virtual_address+sizeDiff),sizeDiff);
+	}
+	else{
+		newVirtualAddress = (sys_isUHeapPlacementStrategyNEXTFIT())?userHeapNextFitStrategy(new_size):userHeapBestFitStrategy(new_size);
+		sys_moveMem((uint32)virtual_address,(uint32)newVirtualAddress,new_size);
+	}
+
 	if(newVirtualAddress != NULL)  sys_moveMem((uint32)virtual_address, (uint32)newVirtualAddress, new_size);
-	sys_freeMem((uint32)virtual_address,size);
+
 	return newVirtualAddress;
+
+/*
+	virtual_address = ROUNDDOWN(virtual_address,PAGE_SIZE);
+
+	new_size = ROUNDUP(new_size, PAGE_SIZE);
+
+		if(virtual_address == NULL)
+			return malloc(new_size);
+		if(!new_size){
+			free(virtual_address);
+			return NULL;
+		}
+
+		void* newVirtualAddress = (sys_isUHeapPlacementStrategyNEXTFIT())?userHeapNextFitStrategy(new_size):userHeapBestFitStrategy(new_size);
+
+		uint32 size = freeFromUserHeap(virtual_address);
+		if(newVirtualAddress == virtual_address && new_size > oldSize) {
+			uint32 size = new_size - oldSize;
+			sys_moveMem((uint32)virtual_address + size, (uint32)newVirtualAddress + size, size);
+		}
+		else if(newVirtualAddress != NULL && newVirtualAddress != virtual_address)
+			sys_moveMem((uint32)virtual_address, (uint32)newVirtualAddress, new_size);
+		//sys_freeMem((uint32)virtual_address,size);
+		return newVirtualAddress;
+*/
 }

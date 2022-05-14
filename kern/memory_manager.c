@@ -742,17 +742,14 @@ void allocateMem(struct Env* e, uint32 virtual_address, uint32 size)
 	//This function should allocate ALL pages of the required range in the PAGE FILE
 	//and allocate NOTHING in the main memory
 
-	uint32 numberOfRequiredPages = size / PAGE_SIZE;
-	numberOfRequiredPages += (size % PAGE_SIZE != 0);
-	int curPage = 0;
 	uint32 virtualAddress = virtual_address;
-	while (curPage < numberOfRequiredPages) {
+	while (size) {
 		int pageStatus = pf_add_empty_env_page(e, virtualAddress, 0);
 		if (pageStatus == E_NO_PAGE_FILE_SPACE) {
 			panic("No page file space");
 		}
-		curPage++;
 		virtualAddress += PAGE_SIZE;
+		size -= PAGE_SIZE;
 	}
 
 }
@@ -835,29 +832,30 @@ void __freeMem_with_buffering(struct Env* e, uint32 virtual_address, uint32 size
 
 void moveMem(struct Env* e, uint32 src_virtual_address, uint32 dst_virtual_address, uint32 size)
 {
-	//TODO DONE BUT DOESN'T SUCCESS [PROJECT 2022 - BONUS3] User Heap Realloc [Kernel Side]
+	//TODO [PROJECT 2022 - BONUS3] User Heap Realloc [Kernel Side]
 
 	// This function should move all pages from "src_virtual_address" to "dst_virtual_address"
 	// with the given size
 	// After finishing, the src_virtual_address must no longer be accessed/exist in either page file
 	// or main memory
 
-	while(size){
-		pf_add_empty_env_page(e, src_virtual_address, 1);
-		pf_add_env_page(e, dst_virtual_address,(void*)src_virtual_address);
-		/*pf_remove_env_page(e, src_virtual_address);
-		for (int entryIndex = 0; entryIndex < (e->page_WS_max_size); entryIndex++) {
-			if (e->ptr_pageWorkingSet[entryIndex].virtual_address == src_virtual_address) {
-				unmap_frame(e->env_page_directory,(void*) (e->ptr_pageWorkingSet[entryIndex].virtual_address));
-				env_page_ws_clear_entry(e, entryIndex);
-				break;
-			}
-		}*/
-		dst_virtual_address+= PAGE_SIZE;
-	    src_virtual_address+= PAGE_SIZE;
-		size-=PAGE_SIZE;
+	if((void*)src_virtual_address == NULL){
+		allocateMem(e,src_virtual_address,size);
 	}
+	else{
+		while(size){
 
+			if((void*)dst_virtual_address != NULL){
+				pf_add_empty_env_page(e, src_virtual_address, 1);
+				pf_add_env_page(e, dst_virtual_address,(void*)src_virtual_address);
+				dst_virtual_address+= PAGE_SIZE;
+			}
+			pf_remove_env_page(e, src_virtual_address);
+			unmap_frame(ptr_page_directory, (void*)src_virtual_address);
+			src_virtual_address+= PAGE_SIZE;
+			size-=PAGE_SIZE;
+		}
+	}
 
 }
 
