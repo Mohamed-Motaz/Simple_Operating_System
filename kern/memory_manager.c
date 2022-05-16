@@ -839,7 +839,12 @@ void moveMem(struct Env* e, uint32 src_virtual_address, uint32 dst_virtual_addre
 	// or main memory
 
 	while(size){
-		int pageStatus = pf_add_env_page(e, dst_virtual_address,(void*)src_virtual_address);
+		int pageStatus = pf_add_empty_env_page(e, dst_virtual_address,0);
+		uint32* dst = (uint32*)dst_virtual_address;
+		uint32* src = (uint32*)src_virtual_address;
+		for(int entry = 0 ; entry < (PAGE_SIZE / 4) ; entry++){
+			dst[entry] = src[entry];
+		}
 		if(pageStatus == E_NO_PAGE_FILE_SPACE)
 			panic("No page file space");
 		dst_virtual_address+= PAGE_SIZE;

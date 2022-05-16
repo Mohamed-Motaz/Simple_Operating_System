@@ -368,6 +368,7 @@ void detect_modified_loop()
 
 void fault_handler(struct Trapframe *tf)
 {
+
 	int userTrap = 0;
 	if ((tf->tf_cs & 3) == 3) {
 		userTrap = 1;

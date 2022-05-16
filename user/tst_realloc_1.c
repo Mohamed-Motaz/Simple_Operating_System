@@ -7,7 +7,7 @@ void _main(void)
 	void* ptr_allocations[20] = {0};
 	int freeFrames ;
 	int usedDiskPages;
-	cprintf("realloc: current evaluation = 00%\n");
+	cprintf("realloc: current evaluation = 00%");
 	//[1] Allocate all
 	{
 		//Allocate 1 MB
