@@ -102,6 +102,7 @@ struct Env {
 
 	uint32 nModifiedPages;
 	uint32 nNotModifiedPages;
+	uint8 priority;
 
 	//Program name (to print it via USER.cprintf in multitasking)
 	char prog_name[PROGNAMELEN];

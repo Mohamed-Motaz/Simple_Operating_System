@@ -6,8 +6,10 @@
 
 void set_program_priority(struct Env* env, int priority)
 {
-	//TODO: [PROJECT 2022 - BONUS4] Change WS Size according to Program Priority
+	//TODO: [PROJECT 2022 - BONUS4] Change WS Size according to Program Priorityï¿½
+	env->priority = priority;
+	if(priority == 1){
 
-	panic("This function is not implemented yet\n");
+	}
 
 }
