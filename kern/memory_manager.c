@@ -16,7 +16,6 @@ FUNCTIONS:	to_physical_address, get_frame_info, tlb_invalidate
 #include <inc/error.h>
 #include <inc/string.h>
 #include <inc/assert.h>
-
 #include <kern/trap.h>
 
 #include <kern/kclock.h>
@@ -735,7 +734,7 @@ int loadtime_map_frame(uint32 *ptr_page_directory, struct Frame_Info *ptr_frame_
 // [10] allocateMem
 void allocateMem(struct Env* e, uint32 virtual_address, uint32 size)
 {
-	//TODO DONE: [PROJECT 2022 - [10] User Heap] allocateMem() [Kernel Side]
+	//TODO DONE [PROJECT 2022 - [10] User Heap] allocateMem() [Kernel Side]
 	// Write your code here, remove the panic and write your code
 	// panic("allocateMem() is not implemented yet...!!");
 
@@ -770,17 +769,18 @@ void freeMem(struct Env* e, uint32 virtual_address, uint32 size)
 	while (tempSize) {
 		// 1. Free ALL pages of the given range from the Page File
 		pf_remove_env_page(e, tempVirtualAddress); // Remove an existing environment page at the given virtual address from the page file.
-		// 2. Free ONLY pages that are resident in the working set from the memory
-		for (int entryIndex = 0; entryIndex < (e->page_WS_max_size); entryIndex++) {
-			if (e->ptr_pageWorkingSet[entryIndex].virtual_address == tempVirtualAddress) {
-				unmap_frame(e->env_page_directory,
-						(void*) (e->ptr_pageWorkingSet[entryIndex].virtual_address));
-				env_page_ws_clear_entry(e, entryIndex); // Clears (make empty) the entry at “entry_index” in “e” working set
-				break;
-			}
-		}
 		tempVirtualAddress += PAGE_SIZE;
 		tempSize -= PAGE_SIZE;
+	}
+	// 2. Free ONLY pages that are resident in the working set from the memory
+
+	for (int entryIndex = 0; entryIndex < (e->page_WS_max_size); entryIndex++) {
+		uint32 entryVirtualAddress = env_page_ws_get_virtual_address(e,entryIndex);
+		if (entryVirtualAddress >= virtual_address && entryVirtualAddress < (virtual_address + size)) {
+			unmap_frame(e->env_page_directory,(void*) (e->ptr_pageWorkingSet[entryIndex].virtual_address));
+			env_page_ws_clear_entry(e, entryIndex); // Clears (make empty) the entry at “entry_index” in “e” working set
+		}
+
 	}
 	//3. Removes ONLY the empty page tables
 	uint32 curDir = PDX(virtual_address);
@@ -830,33 +830,22 @@ void __freeMem_with_buffering(struct Env* e, uint32 virtual_address, uint32 size
 //================= [BONUS] =====================
 // [3] moveMem
 
-void moveMem(struct Env* e, uint32 src_virtual_address, uint32 dst_virtual_address, uint32 size)
-{
-	//TODO [PROJECT 2022 - BONUS3] User Heap Realloc [Kernel Side]
+void moveMem(struct Env* e, uint32 src_virtual_address, uint32 dst_virtual_address, uint32 size){
+	//TODO DONE [PROJECT 2022 - BONUS3] User Heap Realloc [Kernel Side]
 
 	// This function should move all pages from "src_virtual_address" to "dst_virtual_address"
 	// with the given size
 	// After finishing, the src_virtual_address must no longer be accessed/exist in either page file
 	// or main memory
 
-	if((void*)src_virtual_address == NULL){
-		allocateMem(e,src_virtual_address,size);
+	while(size){
+		int pageStatus = pf_add_env_page(e, dst_virtual_address,(void*)src_virtual_address);
+		if(pageStatus == E_NO_PAGE_FILE_SPACE)
+			panic("No page file space");
+		dst_virtual_address+= PAGE_SIZE;
+		src_virtual_address+=PAGE_SIZE;
+		size-=PAGE_SIZE;
 	}
-	else{
-		while(size){
-
-			if((void*)dst_virtual_address != NULL){
-				pf_add_empty_env_page(e, src_virtual_address, 1);
-				pf_add_env_page(e, dst_virtual_address,(void*)src_virtual_address);
-				dst_virtual_address+= PAGE_SIZE;
-			}
-			pf_remove_env_page(e, src_virtual_address);
-			unmap_frame(ptr_page_directory, (void*)src_virtual_address);
-			src_virtual_address+= PAGE_SIZE;
-			size-=PAGE_SIZE;
-		}
-	}
-
 }
 
 //==================================================================================================
@@ -1410,6 +1399,5 @@ uint32 isKHeapPlacementStrategyFIRSTFIT(){if(_KHeapPlacementStrategy == KHP_PLAC
 uint32 isKHeapPlacementStrategyBESTFIT(){if(_KHeapPlacementStrategy == KHP_PLACE_BESTFIT) return 1; return 0;}
 uint32 isKHeapPlacementStrategyNEXTFIT(){if(_KHeapPlacementStrategy == KHP_PLACE_NEXTFIT) return 1; return 0;}
 uint32 isKHeapPlacementStrategyWORSTFIT(){if(_KHeapPlacementStrategy == KHP_PLACE_WORSTFIT) return 1; return 0;}
-
 
 

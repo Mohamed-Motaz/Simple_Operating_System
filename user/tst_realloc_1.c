@@ -85,13 +85,11 @@ void _main(void)
 		freeFrames = sys_calculate_free_frames() ;
 		usedDiskPages = sys_pf_calculate_allocated_pages() ;
 		uint32 remainingSpaceInUHeap = (USER_HEAP_MAX - USER_HEAP_START) - 14 * Mega;
-		cprintf("realloc: current evaluation = 10%\n");
 		ptr_allocations[8] = malloc(remainingSpaceInUHeap - kilo);
 		if ((uint32) ptr_allocations[8] !=  (USER_HEAP_START + 14*Mega)) panic("Wrong start address for the allocated space... ");
 		//if ((freeFrames - sys_calculate_free_frames()) != 768 + 1) panic("Wrong allocation: ");
 		if((freeFrames - sys_calculate_free_frames()) != 124) panic("Wrong allocation: either extra pages are allocated in memory or pages not allocated correctly on PageFile");
 		if((sys_pf_calculate_allocated_pages() - usedDiskPages) != 127488) panic("Extra or less pages are allocated in PageFile");
-		cprintf("realloc: current evaluation = 30%\n");
 	}
 
 	//[2] Free some to create holes
@@ -103,7 +101,6 @@ void _main(void)
 		//if ((sys_calculate_free_frames() - freeFrames) != 256) panic("Wrong free: ");
 		if ((usedDiskPages - sys_pf_calculate_allocated_pages()) != 256) panic("Wrong free: Extra or less pages are removed from PageFile");
 		if ((sys_calculate_free_frames() - freeFrames) != 0) panic("Wrong free: WS pages in memory and/or page tables are not freed correctly");
-		cprintf("realloc: current evaluation = 40%\n");
 
 		//2 MB Hole
 		freeFrames = sys_calculate_free_frames() ;
@@ -112,7 +109,6 @@ void _main(void)
 		//if ((sys_calculate_free_frames() - freeFrames) != 512) panic("Wrong free: ");
 		if ((usedDiskPages - sys_pf_calculate_allocated_pages()) != 512) panic("Wrong free: Extra or less pages are removed from PageFile");
 		if ((sys_calculate_free_frames() - freeFrames) != 0) panic("Wrong free: WS pages in memory and/or page tables are not freed correctly");
-		cprintf("realloc: current evaluation = 45%\n");
 
 		//3 MB Hole
 		freeFrames = sys_calculate_free_frames() ;
@@ -121,18 +117,15 @@ void _main(void)
 		//if ((sys_calculate_free_frames() - freeFrames) != 768) panic("Wrong free: ");
 		if ((usedDiskPages - sys_pf_calculate_allocated_pages()) != 768) panic("Wrong free: Extra or less pages are removed from PageFile");
 		if ((sys_calculate_free_frames() - freeFrames) != 0) panic("Wrong free: WS pages in memory and/or page tables are not freed correctly");
-		cprintf("realloc: current evaluation = 50%\n");
 
 		//NEW
 		//free the latest Hole (the big one)
 		freeFrames = sys_calculate_free_frames() ;
 		usedDiskPages = sys_pf_calculate_allocated_pages();
-		cprintf("realloc: current evaluation = 55%\n");
 		free(ptr_allocations[8]);
 		//if ((sys_calculate_free_frames() - freeFrames) != 768) panic("Wrong free: ");
 		if ((usedDiskPages - sys_pf_calculate_allocated_pages()) != 127488) panic("Wrong free: Extra or less pages are removed from PageFile");
 		if ((sys_calculate_free_frames() - freeFrames) != 0) panic("Wrong free: WS pages in memory and/or page tables are not freed correctly");
-		cprintf("realloc: current evaluation = 60%\n");
 	}
 	int cnt = 0;
 
@@ -174,7 +167,6 @@ void _main(void)
 		freeFrames = sys_calculate_free_frames() ;
 		usedDiskPages = sys_pf_calculate_allocated_pages() ;
 		ptr_allocations[9] = realloc(ptr_allocations[9], 512*kilo + 256*kilo - kilo);
-		cprintf("realloc: current evaluation = 90%\n");
 		//[1] test return address & re-allocated space
 		if ((uint32) ptr_allocations[9] != (USER_HEAP_START + 1*Mega)) panic("Wrong start address for the re-allocated space... ");
 		//if ((freeFrames - sys_calculate_free_frames()) != 64) panic("Wrong re-allocation");
