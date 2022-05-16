@@ -9,7 +9,8 @@ void initializeDataArr();
 void* kmallocNextFit(uint32 size);
 void* kmallocBestFit(uint32 size);
 uint32 min(uint32, uint32);
-uint32 dataArrIdx(uint32);
+uint32 kHeapIdx(uint32);
+void allocateInKHeap(uint32 startAddress, uint32 size);
 //declarations
 struct DataLocAndSz {
 	uint32 virtualAddr;      //same for all parts in a segment
@@ -17,8 +18,8 @@ struct DataLocAndSz {
 	uint32 numBytesAllocated;
 	uint32 physAddr;
 };
-int dataArrSz = (KERNEL_HEAP_MAX - KERNEL_HEAP_START) / PAGE_SIZE + 100;
-struct DataLocAndSz dataArr[(KERNEL_HEAP_MAX - KERNEL_HEAP_START) / PAGE_SIZE + 100];                                 //array of current kheap memory allocations
+int kHeapSz = (KERNEL_HEAP_MAX - KERNEL_HEAP_START) / PAGE_SIZE + 100;
+struct DataLocAndSz kHeap[(KERNEL_HEAP_MAX - KERNEL_HEAP_START) / PAGE_SIZE + 100];                                 //array of current kheap memory allocations
 uint32 K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR = (uint32)KERNEL_HEAP_START;      //next ptr to check to allocate in NEX FIT STRATEGY
 uint8 firstRun = 1;
 
@@ -46,11 +47,11 @@ void* kmalloc(unsigned int size)
 }
 
 void initializeDataArr(){
-    //initialize the dataArr by setting all the addresses correctly
+    //initialize the kHeap by setting all the addresses correctly
 	for (uint32 addr = KERNEL_HEAP_START; addr < KERNEL_HEAP_MAX; addr += PAGE_SIZE){
-		dataArr[dataArrIdx(addr)].numBytesAllocated = 0;
-		dataArr[dataArrIdx(addr)].virtualAddr = addr;
-		dataArr[dataArrIdx(addr)].realVirtualAddr = addr;
+		kHeap[kHeapIdx(addr)].numBytesAllocated = 0;
+		kHeap[kHeapIdx(addr)].virtualAddr = addr;
+		kHeap[kHeapIdx(addr)].realVirtualAddr = addr;
 
 	}
 }
@@ -61,21 +62,21 @@ uint32 min(uint32 a, uint32 b){
 	return b;
 }
 
-uint32 dataArrIdx(uint32 addr){
+uint32 kHeapIdx(uint32 addr){
 	return (addr - KERNEL_HEAP_START) / PAGE_SIZE;
 }
 
 void* kmallocNextFit(uint32 size){
 	uint32 curAddr = K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR;
 	uint32 end = curAddr;     //end is start as path may be circular
-	uint32 freeBytesFound = 0;
+	uint32 freeSize = 0;
 
 	for ( ;curAddr < KERNEL_HEAP_MAX; curAddr += PAGE_SIZE){
-		if (dataArr[dataArrIdx(curAddr)].numBytesAllocated == 0){
+		if (kHeap[kHeapIdx(curAddr)].numBytesAllocated == 0){
 			//found a free page
-			freeBytesFound += PAGE_SIZE;
+			freeSize += PAGE_SIZE;
 
-			if (freeBytesFound == size){
+			if (freeSize == size){
 				curAddr -= size;//return curAddr ptr properly
 				curAddr += PAGE_SIZE; //since curAddr isnt incremented until the end of the iteration
 				break;
@@ -83,19 +84,19 @@ void* kmallocNextFit(uint32 size){
             continue;
 		}
 		//need to look for another segment
-		freeBytesFound = 0;
+		freeSize = 0;
 	}
 
 	//retry from the start of the heap
-	if (freeBytesFound != size){
+	if (freeSize != size){
 		curAddr = KERNEL_HEAP_START;
-		freeBytesFound = 0;
+		freeSize = 0;
 		for ( ;curAddr < end; curAddr += PAGE_SIZE){
-			if (0 == dataArr[dataArrIdx(curAddr)].numBytesAllocated){
+			if (0 == kHeap[kHeapIdx(curAddr)].numBytesAllocated){
 				//found a free page
-				freeBytesFound += PAGE_SIZE;
+				freeSize += PAGE_SIZE;
 
-				if (freeBytesFound == size){
+				if (freeSize == size){
 					curAddr -= size; //return curAddr ptr properly
 					curAddr += PAGE_SIZE;  //since curAddr isnt incremented until the end of the iteration
 					break;
@@ -103,75 +104,66 @@ void* kmallocNextFit(uint32 size){
 				continue;
 			}
 			//need to look for another segment
-			freeBytesFound = 0;
+			freeSize = 0;
 		}
 	}
 
-	if (freeBytesFound < size)return NULL;
+	if (freeSize < size)return NULL;
 
 	//begin the allocation
-	uint32 startAlloc = curAddr;
-	uint32 szAlloc = 0;
-	for (; szAlloc < size; szAlloc += PAGE_SIZE, startAlloc += PAGE_SIZE){
-		struct Frame_Info *ptr_frame_info = 0;
-		allocate_frame(&ptr_frame_info);
-		map_frame(ptr_page_directory, ptr_frame_info, (void*)startAlloc, PERM_PRESENT | PERM_WRITEABLE);
-		dataArr[dataArrIdx(startAlloc)].numBytesAllocated = freeBytesFound;
-		dataArr[dataArrIdx(startAlloc)].virtualAddr = curAddr;
-		dataArr[dataArrIdx(startAlloc)].physAddr = kheap_physical_address(startAlloc);
-	}
+	allocateInKHeap(curAddr,size);
 
-	K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR = curAddr + szAlloc;  //set the pointer to look just after this point of allocation
+	K_MALLOC_NEXT_FIT_STRATEGY_CUR_PTR = curAddr + size;  //set the pointer to look just after this point of allocation
 
 	return (void*)curAddr;
 }
 
 void* kmallocBestFit(uint32 size){
-	uint32 curAddr = KERNEL_HEAP_START;
-	uint32 end = KERNEL_HEAP_MAX;
-	uint32 freeBytesFound = 0;
-	uint32 minFreeBytesSoFar = end - curAddr + 7; //just over the amount of kheap
-    uint32 minFreeBytesPtr = -1;
-    uint32 spaceFound = 0;
 
-	for( ;curAddr < end; curAddr += PAGE_SIZE){
-		if (dataArr[dataArrIdx(curAddr)].numBytesAllocated == 0)
+	uint32 freeSize = 0;
+	uint32 minFreeBytesSoFar = (KERNEL_HEAP_MAX - KERNEL_HEAP_START) + 7; //just over the amount of kheap
+	uint32 minFreeBytesPtr = 0;
+
+	for(uint32 curAddr = KERNEL_HEAP_START; curAddr < KERNEL_HEAP_MAX; curAddr+=PAGE_SIZE){
+		if (kHeap[kHeapIdx(curAddr)].numBytesAllocated == 0)
 			//free page
-			freeBytesFound += PAGE_SIZE;
-
+			freeSize += PAGE_SIZE;
 		else{
-			if (freeBytesFound >= size && freeBytesFound < minFreeBytesSoFar){
-				minFreeBytesSoFar = freeBytesFound;
+			if (freeSize >= size && freeSize < minFreeBytesSoFar){
+				minFreeBytesSoFar = freeSize;
 				minFreeBytesPtr = curAddr - minFreeBytesSoFar;
-				spaceFound = 1;
 			}
-			freeBytesFound = 0;
+			freeSize = 0;
 		}
 	}
-	//this condition is for when I reach the K_HEAP_MAX without breaking
-	if (freeBytesFound >= size && freeBytesFound < minFreeBytesSoFar){
-		minFreeBytesSoFar = freeBytesFound;
-		minFreeBytesPtr = curAddr - minFreeBytesSoFar;
-		spaceFound = 1;
+	//no space found
+	if (minFreeBytesPtr == 0){
+		//this condition is for when I reach the K_HEAP_MAX without breaking
+		if (freeSize >= size && freeSize < minFreeBytesSoFar){
+			minFreeBytesSoFar = freeSize;
+			minFreeBytesPtr = KERNEL_HEAP_MAX - minFreeBytesSoFar;
+		}
+		else
+			return NULL;
 	}
 
-	//no space found
-	if (spaceFound == 0)
-		return NULL;
+	allocateInKHeap(minFreeBytesPtr,size);
+	return (void*)minFreeBytesPtr;
+}
 
-	//begin the allocation
-	uint32 startAlloc = minFreeBytesPtr;
-	uint32 szAlloc = 0;
-	for (; szAlloc < size; szAlloc += PAGE_SIZE, startAlloc += PAGE_SIZE){
+void allocateInKHeap(uint32 startAddress, uint32 size){
+
+	int addrIndex = kHeapIdx(startAddress);
+	while(size > 0){
 		struct Frame_Info *ptr_frame_info = 0;
 		allocate_frame(&ptr_frame_info);
-		map_frame(ptr_page_directory, ptr_frame_info, (void*)startAlloc, PERM_PRESENT | PERM_WRITEABLE);
-		dataArr[dataArrIdx(startAlloc)].numBytesAllocated = size;
-		dataArr[dataArrIdx(startAlloc)].virtualAddr = minFreeBytesPtr;
-		dataArr[dataArrIdx(startAlloc)].physAddr = kheap_physical_address(startAlloc);
+		map_frame(ptr_page_directory, ptr_frame_info, (void*)kHeap[addrIndex].realVirtualAddr, PERM_PRESENT | PERM_WRITEABLE);
+		kHeap[addrIndex].numBytesAllocated = 1;
+		kHeap[addrIndex].virtualAddr = startAddress;
+		kHeap[addrIndex].physAddr = kheap_physical_address(kHeap[addrIndex].realVirtualAddr);
+		addrIndex++;
+		size-=PAGE_SIZE;
 	}
-
-	return (void*)minFreeBytesPtr;
 }
 
 void kfree(void* virtual_address)
@@ -180,12 +172,12 @@ void kfree(void* virtual_address)
 	uint32 startDeAlloc = ROUNDDOWN((uint32)virtual_address, PAGE_SIZE);
 
 	for (; startDeAlloc < KERNEL_HEAP_MAX; startDeAlloc += PAGE_SIZE)
-		if (0 != dataArr[(startDeAlloc - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated &&
-	       (uint32)virtual_address == dataArr[(startDeAlloc - KERNEL_HEAP_START) / PAGE_SIZE].virtualAddr){
+		if (0 != kHeap[(startDeAlloc - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated &&
+	       (uint32)virtual_address == kHeap[(startDeAlloc - KERNEL_HEAP_START) / PAGE_SIZE].virtualAddr){
 			unmap_frame(ptr_page_directory, (void*)startDeAlloc);
-			dataArr[(startDeAlloc - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated = 0;
-			dataArr[(startDeAlloc - KERNEL_HEAP_START) / PAGE_SIZE].virtualAddr = startDeAlloc;  //return the value to be the same during initialization
-			dataArr[(startDeAlloc - KERNEL_HEAP_START) / PAGE_SIZE].physAddr = 0;
+			kHeap[(startDeAlloc - KERNEL_HEAP_START) / PAGE_SIZE].numBytesAllocated = 0;
+			kHeap[(startDeAlloc - KERNEL_HEAP_START) / PAGE_SIZE].virtualAddr = startDeAlloc;  //return the value to be the same during initialization
+			kHeap[(startDeAlloc - KERNEL_HEAP_START) / PAGE_SIZE].physAddr = 0;
 		}else
 			break;
 
@@ -196,9 +188,9 @@ unsigned int kheap_virtual_address(unsigned int physical_address)
 {
 	//TODO:DONE [PROJECT 2022 - [3] Kernel Heap] kheap_virtual_address()
 
-	for (int i = 0; i < dataArrSz; i++){
-		if (dataArr[i].physAddr == physical_address)
-			return dataArr[i].realVirtualAddr;
+	for (int i = 0; i < kHeapSz; i++){
+		if (kHeap[i].physAddr == physical_address)
+			return kHeap[i].realVirtualAddr;
 	}
 	return 0;
 }
@@ -224,8 +216,3 @@ unsigned int kheap_physical_address(unsigned int virtual_address)
 
     return physAddr;
 }
-
-
-/*
- *
- */

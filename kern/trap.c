@@ -453,11 +453,9 @@ void table_fault_handler(struct Env * curenv, uint32 fault_va)
 
 uint32 modifiedClock(struct Env * curenv, uint32 fault_va){
 	//now attempt to find an idx
-	//cprintf("in\n");
 	uint32 idx = -1;
 	while (1 == 1){
-		//try1  =================================================================================================
-		//cprintf("try 1\n");
+
 		uint32 tmp = curenv->page_last_WS_index;
 		do{
             uint32 va = env_page_ws_get_virtual_address(curenv, curenv->page_last_WS_index);
@@ -478,8 +476,7 @@ uint32 modifiedClock(struct Env * curenv, uint32 fault_va){
 		}while(curenv->page_last_WS_index != tmp);
         if (idx != -1)  //found a result
         	break;
-		//try2  =================================================================================================
-		//cprintf("try 2\n");
+
 		do{
 			uint32 va = env_page_ws_get_virtual_address(curenv, curenv->page_last_WS_index);
 			uint32 permissions = pt_get_page_permissions(curenv, va);
@@ -498,9 +495,8 @@ uint32 modifiedClock(struct Env * curenv, uint32 fault_va){
 		}while(curenv->page_last_WS_index != tmp);
 
 		if (idx != -1)  //found a result
-		        	break;
+			break;
 	}
-    //cprintf("out\n");
 
 	//use the idx and empty the victim
 	uint32 victimVa = env_page_ws_get_virtual_address(curenv,idx);
@@ -580,12 +576,7 @@ uint8 isStackPage(uint32 va){
 
 void page_fault_handler(struct Env * curenv, uint32 fault_va)
 {
-	//TODO DONE: [PROJECT 2022 - [6] PAGE FAULT HANDLER]
-	//env_page_ws_print(curenv);
-
-
-	//cprintf("=#1=#1====fault_va====> %x\n",fault_va);
-	//env_page_ws_print(curenv);
+	//TODO DONE [PROJECT 2022 - [6] PAGE FAULT HANDLER]
 
 	uint32 idx = -1;
 
@@ -601,11 +592,6 @@ void page_fault_handler(struct Env * curenv, uint32 fault_va)
 
 	preparePlacingInWs(curenv, fault_va, idx);
 	placeInWS(curenv, fault_va, idx);
-
-
-	//env_page_ws_print(curenv);
-	//cprintf("=#2=#2====fault_va====> %x\n",fault_va);
-
 
 	//TODO: [PROJECT 2022 - BONUS4] Change WS Size according to Program Priority‌
 }
