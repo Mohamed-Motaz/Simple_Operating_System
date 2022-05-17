@@ -1,4 +1,3 @@
-
 #include <inc/lib.h>
 
 
@@ -6,8 +5,8 @@ void intializeUserHeap();
 void* userHeapNextFitStrategy();
 void* userHeapBestFitStrategy();
 void* allocateInUserHeap();
-void freeFromUserHeapByStartAddress();
-void freeFromUserHeapBySize();
+uint32 getSizeForExpand();
+void freeFromUserHeap();
 uint32 userHeapIndex();
 uint32 absoluteValue();
 uint32 getReservedBlockSize();
@@ -19,7 +18,7 @@ struct userHeapEntry{
 };
 int numOfUserHeapEntries = (USER_HEAP_MAX - USER_HEAP_START)/ PAGE_SIZE;
 struct userHeapEntry userHeap[(USER_HEAP_MAX - USER_HEAP_START)/ PAGE_SIZE];
-uint32 USER_HEAP_NEXT_FIT_CURRENT_PTR = USER_HEAP_START;
+uint32 USER_HEAP_NEXT_FIT_STRATEGY_CUR_PTR = USER_HEAP_START;
 bool userHeapIntialized = 0;
 
 
@@ -53,16 +52,18 @@ void* allocateInUserHeap(uint32 startAddress, uint32 size){
 	return (void*)userHeap[(addrIndex % numOfUserHeapEntries)].virtualAddress;
 }
 
-void freeFromUserHeapByStartAddress(void* virtual_address){
-	for(uint32 addr = (uint32)virtual_address; addr < USER_HEAP_MAX; addr += PAGE_SIZE ){
-			int addrIndex = userHeapIndex(addr);
-			if(userHeap[addrIndex].startAddress == (uint32)virtual_address){
-				userHeap[addrIndex].used=0;
-				userHeap[addrIndex].startAddress=0;
+uint32 getSizeForExpand(uint32 virtual_address){
+	uint32 freeSize = 0;
+	for(int addIndex = userHeapIndex(virtual_address); addIndex < numOfUserHeapEntries; addIndex++){
+        if(userHeap[addIndex].startAddress == 0){
+			freeSize+=PAGE_SIZE;
 		}
+		else
+			break;
 	}
+	return freeSize;
 }
-void freeFromUserHeapBySize(void* virtual_address,uint32 size){
+void freeFromUserHeap(void* virtual_address,uint32 size){
 	for(uint32 addr = (uint32)virtual_address; addr < (uint32)virtual_address + size; addr += PAGE_SIZE ){
 		int addrIndex = userHeapIndex(addr);
 		userHeap[addrIndex].used=0;
@@ -85,30 +86,40 @@ uint32 getReservedBlockSize(uint32 startAddress){
 
 void* userHeapNextFitStrategy(uint32 size){
 
-	for(uint32 addr = USER_HEAP_NEXT_FIT_CURRENT_PTR; addr < USER_HEAP_MAX; addr+= PAGE_SIZE){
-		uint32 freeSize = 0;
-		uint32 addrIndex = userHeapIndex(addr);
-		while(addrIndex < numOfUserHeapEntries && !userHeap[addrIndex].used && freeSize < size){
-			addrIndex++;
-			freeSize+= PAGE_SIZE;
-		}
-		if(freeSize >= size){
-			USER_HEAP_NEXT_FIT_CURRENT_PTR = (uint32)allocateInUserHeap(addr, size);
-			return (void*)addr;
-		}
-	}
+	uint32 freeSize = 0;
 
-	for(uint32 addr = USER_HEAP_START; addr < USER_HEAP_NEXT_FIT_CURRENT_PTR; addr+= PAGE_SIZE){
-		uint32 freeSize = 0;
-		uint32 addrIndex = userHeapIndex(addr);
-		while(addrIndex < userHeapIndex(USER_HEAP_NEXT_FIT_CURRENT_PTR) && !userHeap[addrIndex].used && freeSize < size){
-			addrIndex++;
-			freeSize+= PAGE_SIZE;
+	for(uint32 addr = USER_HEAP_NEXT_FIT_STRATEGY_CUR_PTR; addr < USER_HEAP_MAX; addr+= PAGE_SIZE){
+
+		if (!userHeap[userHeapIndex(addr)].used){
+			//found a free page
+			freeSize += PAGE_SIZE;
+			if (freeSize == size){
+				addr -= size;//return ddr ptr properly
+				addr += PAGE_SIZE; //since addr isnt incremented until the end of the iteration
+				USER_HEAP_NEXT_FIT_STRATEGY_CUR_PTR = (uint32)allocateInUserHeap(addr, size);
+				return (void*)addr;
+			}
 		}
-		if(freeSize >= size){
-			USER_HEAP_NEXT_FIT_CURRENT_PTR = (uint32)allocateInUserHeap(addr, size);
-			return (void*)addr;
+		else
+			//need to look for another segment
+			freeSize = 0;
+	}
+	freeSize = 0;
+	for(uint32 addr = USER_HEAP_START; addr < USER_HEAP_NEXT_FIT_STRATEGY_CUR_PTR; addr+= PAGE_SIZE){
+		if (!userHeap[userHeapIndex(addr)].used){
+
+			//found a free page
+			freeSize += PAGE_SIZE;
+			if (freeSize == size){
+				addr -= size;//return addr ptr properly
+				addr += PAGE_SIZE; //since addr isnt incremented until the end of the iteration
+				USER_HEAP_NEXT_FIT_STRATEGY_CUR_PTR = (uint32)allocateInUserHeap(addr, size);
+				return (void*)addr;
+			}
 		}
+		else
+			//need to look for another segment
+			freeSize = 0;
 	}
 	return NULL;
 }
@@ -235,7 +246,7 @@ void free(void* virtual_address)
 
 	virtual_address = ROUNDDOWN(virtual_address,PAGE_SIZE);
 	uint32 size = getReservedBlockSize((uint32)virtual_address);
-	freeFromUserHeapBySize(virtual_address,size);
+	freeFromUserHeap(virtual_address,size);
 	sys_freeMem((uint32)virtual_address,size);
 
 	//you shold get the size of the given allocation using its address
@@ -281,21 +292,16 @@ void* realloc(void *virtual_address, uint32 new_size)
 		return NULL;
 	}
 
-	uint32 oldSize = getReservedBlockSize((uint32)virtual_address), freeSize = 0;
-	for(int addIndex = userHeapIndex((uint32)virtual_address+oldSize); addIndex < numOfUserHeapEntries; addIndex++){
-        if(userHeap[addIndex].startAddress == 0){
-			freeSize+=PAGE_SIZE;
-		}
-		else
-			break;
-	}
+	uint32 oldSize = getReservedBlockSize((uint32)virtual_address);
+	uint32 freeSize = getSizeForExpand((uint32)virtual_address+oldSize);
+
 	if(new_size <= oldSize){
-		freeFromUserHeapBySize(virtual_address+new_size,oldSize - new_size);
-		USER_HEAP_NEXT_FIT_CURRENT_PTR = (uint32)(virtual_address+(new_size));
+		freeFromUserHeap(virtual_address+new_size,oldSize - new_size);
+		USER_HEAP_NEXT_FIT_STRATEGY_CUR_PTR = (uint32)(virtual_address+(new_size));
 		return virtual_address;
 	}
 	else if(new_size <= (oldSize + freeSize)){
-		USER_HEAP_NEXT_FIT_CURRENT_PTR = (uint32)allocateInUserHeap((uint32)virtual_address,new_size);
+		USER_HEAP_NEXT_FIT_STRATEGY_CUR_PTR = (uint32)allocateInUserHeap((uint32)virtual_address,new_size);
 		sys_allocateMem((uint32)virtual_address+oldSize,new_size-oldSize);
 		return virtual_address;
 	}
@@ -315,4 +321,3 @@ void* realloc(void *virtual_address, uint32 new_size)
 	}
 	return NULL;
 }
-

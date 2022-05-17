@@ -777,8 +777,8 @@ void freeMem(struct Env* e, uint32 virtual_address, uint32 size)
 	for (int entryIndex = 0; entryIndex < (e->page_WS_max_size); entryIndex++) {
 		uint32 entryVirtualAddress = env_page_ws_get_virtual_address(e,entryIndex);
 		if (entryVirtualAddress >= virtual_address && entryVirtualAddress < (virtual_address + size)) {
-			unmap_frame(e->env_page_directory,(void*) (e->ptr_pageWorkingSet[entryIndex].virtual_address));
-			env_page_ws_clear_entry(e, entryIndex); // Clears (make empty) the entry at “entry_index” in “e” working set
+			unmap_frame(e->env_page_directory,(void*) entryVirtualAddress);
+			env_page_ws_clear_entry(e, entryIndex); // Clears (make empty) the entry at ï¿½entry_indexï¿½ in ï¿½eï¿½ working set
 		}
 
 	}
@@ -842,9 +842,7 @@ void moveMem(struct Env* e, uint32 src_virtual_address, uint32 dst_virtual_addre
 		int pageStatus = pf_add_empty_env_page(e, dst_virtual_address,0);
 		uint32* dst = (uint32*)dst_virtual_address;
 		uint32* src = (uint32*)src_virtual_address;
-		for(int entry = 0 ; entry < (PAGE_SIZE / 4) ; entry++){
-			dst[entry] = src[entry];
-		}
+		dst = memcpy(dst, src, PAGE_SIZE);
 		if(pageStatus == E_NO_PAGE_FILE_SPACE)
 			panic("No page file space");
 		dst_virtual_address+= PAGE_SIZE;
@@ -1404,5 +1402,4 @@ uint32 isKHeapPlacementStrategyFIRSTFIT(){if(_KHeapPlacementStrategy == KHP_PLAC
 uint32 isKHeapPlacementStrategyBESTFIT(){if(_KHeapPlacementStrategy == KHP_PLACE_BESTFIT) return 1; return 0;}
 uint32 isKHeapPlacementStrategyNEXTFIT(){if(_KHeapPlacementStrategy == KHP_PLACE_NEXTFIT) return 1; return 0;}
 uint32 isKHeapPlacementStrategyWORSTFIT(){if(_KHeapPlacementStrategy == KHP_PLACE_WORSTFIT) return 1; return 0;}
-
 
