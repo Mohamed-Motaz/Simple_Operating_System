@@ -727,17 +727,17 @@ void env_free(struct Env *e) {
 
 	// [1] Free the pages in the PAGE working set from the main memory
 	uint32 sizeOfWorkingSet = e->page_WS_max_size;
-	uint32 entryIndex = 0;
-	for (uint32 entryIndex = 0; entryIndex < sizeOfWorkingSet; entryIndex++) {
+	for (uint32 indexOfEntry = 0; indexOfEntry < sizeOfWorkingSet;
+			indexOfEntry++) {
 		// env_page_ws_is_entry_empty returns 0 or 1
 		// 0: if the working set entry at “entry _index” is NOT empty
 		// 1: if the working set entry at “entry _index” is empty
-		if (env_page_ws_is_entry_empty(e, entryIndex) == 0) {
+		if (env_page_ws_is_entry_empty(e, indexOfEntry) == 0) {
 			uint32 virtualAddress = env_page_ws_get_virtual_address(e,
-					entryIndex);
+					indexOfEntry);
 			if ((void*) virtualAddress != NULL)
 				unmap_frame(e->env_page_directory, (void*) virtualAddress);
-			env_page_ws_clear_entry(e, entryIndex);
+			env_page_ws_clear_entry(e, indexOfEntry);
 		}
 	}
 	uint32 *ptrToPageTable = NULL;
@@ -759,13 +759,13 @@ void env_free(struct Env *e) {
 	struct WorkingSetElement* ptrToPageWorkingSet = e->ptr_pageWorkingSet;
 	kfree((void*) ptrToPageWorkingSet);
 	// [3] Free all TABLES from the main memory
-	uint32 curVirtualAddress = 0;
-	while (curVirtualAddress < USER_TOP) {
-		get_page_table(e->env_page_directory, (void*) curVirtualAddress,
+	uint32 curVirtualAddressOfTable = 0;
+	while (curVirtualAddressOfTable < USER_TOP) {
+		get_page_table(e->env_page_directory, (void*) curVirtualAddressOfTable,
 				&ptrToPageTable);
 		if (ptrToPageTable != NULL) {
-			// The page table, which contains curVirtualAddress, becomes no longer exists in the whole system
-			// pd_clear_page_dir_entry(e, (uint32)curVirtualAddress);
+			// The page table, which contains curVirtualAddressOfTable, becomes no longer exists in the whole system
+			// pd_clear_page_dir_entry(e, (uint32)curVirtualAddressOfTable);
 			// unmap_frame(e->env_page_directory, (void*) ptrToPageTable);
 			unsigned int physicalAddressOfPage = kheap_physical_address(
 					(uint32) ptrToPageTable);
@@ -773,7 +773,8 @@ void env_free(struct Env *e) {
 					physicalAddressOfPage);
 			free_frame(ptrToFrameInfo);
 		}
-		curVirtualAddress += PAGE_SIZE * 1024;
+		// each table contains 1024 entry with page size so to move to the next table
+		curVirtualAddressOfTable += PAGE_SIZE * 1024;
 	}
 	// [4] Free the page DIRECTORY from the main memory
 	kfree(e->env_page_directory);
