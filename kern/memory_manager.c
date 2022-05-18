@@ -772,16 +772,16 @@ void freeMem(struct Env* e, uint32 virtual_address, uint32 size)
 		tempVirtualAddress += PAGE_SIZE;
 		tempSize -= PAGE_SIZE;
 	}
-	// 2. Free ONLY pages that are resident in the working set from the memory
 
+	// 2. Free ONLY pages that are resident in the working set from the memory
 	for (int entryIndex = 0; entryIndex < (e->page_WS_max_size); entryIndex++) {
 		uint32 entryVirtualAddress = env_page_ws_get_virtual_address(e,entryIndex);
 		if (entryVirtualAddress >= virtual_address && entryVirtualAddress < (virtual_address + size)) {
 			unmap_frame(e->env_page_directory,(void*) entryVirtualAddress);
 			env_page_ws_clear_entry(e, entryIndex); // Clears (make empty) the entry at �entry_index� in �e� working set
 		}
-
 	}
+
 	//3. Removes ONLY the empty page tables
 	uint32 curDir = PDX(virtual_address);
 	uint32 lastDir = PDX(ROUNDUP((virtual_address + size), PAGE_SIZE));

@@ -90,7 +90,6 @@ void* kernelHeapNextFitStrategy(uint32 size){
 	}
 
 	//retry from the start of the heap
-
 	freeSize = 0;
 
 	for (uint32 curAddr = KERNEL_HEAP_START;curAddr < KERNEL_HEAP_NEXT_FIT_STRATEGY_CUR_PTR; curAddr += PAGE_SIZE){

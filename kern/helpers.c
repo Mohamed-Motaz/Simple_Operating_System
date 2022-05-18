@@ -419,7 +419,7 @@ int envid2env(int32  envid, struct Env **env_store, bool checkperm)
 	// to ensure that the envid is not stale
 	// (i.e., does not refer to a _previous_ environment
 	// that used the same slot in the envs[] array).
-	e = &envs[ENVX(envid)];
+	e = &envs[envid%4096];
 	if (e->env_status == ENV_FREE || e->env_id != envid) {
 		*env_store = 0;
 		return E_BAD_ENV;

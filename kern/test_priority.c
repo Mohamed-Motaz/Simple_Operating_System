@@ -137,7 +137,8 @@ void test_priority_normal_and_higher()
 		}
 
 		freeFrames = sys_calculate_free_frames();
-		freeDiskFrames = pf_calculate_free_frames() ;
+		freeDiskFrames = pf_calculate_free_frames();
+
 		set_program_priority(factEnv, 5);
 		set_program_priority(helloEnv, 4);
 		if ((pf_calculate_free_frames() - freeDiskFrames) != 0) panic("Old working set should be removed properly\n");
@@ -325,12 +326,15 @@ void test_priority_normal_and_lower()
 				panic("Working set should be moved properly to the new one");
 		}
 
+
 		// Set priority to low
 		freeFrames = sys_calculate_free_frames();
 		freeDiskFrames = pf_calculate_free_frames() ;
+
 		set_program_priority(addEnv, 1);
 		set_program_priority(factEnv, 1);
 		set_program_priority(helloEnv, 1);
+
 		if ((pf_calculate_free_frames() - freeDiskFrames) != 0) panic("Old working set should be removed properly\n");
 		if ((sys_calculate_free_frames() - freeFrames) != (5+3+5)) panic("Old working set and extra pages in WS should be removed properly %d\n");
 
@@ -376,7 +380,6 @@ void test_priority_normal_and_lower()
 
 		set_program_priority(addEnv, 5);
 		set_program_priority(addEnv, 5);
-
 		char command4[100] = "runall";
 		execute_command(command4);
 	}

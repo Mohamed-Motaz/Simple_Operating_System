@@ -33,7 +33,6 @@ uint32 absoluteValue(uint32 value){
 void intializeUserHeap(){
 
 	for (uint32 addr = USER_HEAP_START; addr < USER_HEAP_MAX; addr += PAGE_SIZE){
-
 		int addrIndex = userHeapIndex(addr);
 		userHeap[addrIndex].startAddress = 0;
 		userHeap[addrIndex].virtualAddress = addr;
@@ -107,7 +106,6 @@ void* userHeapNextFitStrategy(uint32 size){
 	freeSize = 0;
 	for(uint32 addr = USER_HEAP_START; addr < USER_HEAP_NEXT_FIT_STRATEGY_CUR_PTR; addr+= PAGE_SIZE){
 		if (!userHeap[userHeapIndex(addr)].used){
-
 			//found a free page
 			freeSize += PAGE_SIZE;
 			if (freeSize == size){
@@ -306,6 +304,7 @@ void* realloc(void *virtual_address, uint32 new_size)
 		return virtual_address;
 	}
 	else {
+
 		void* newAddress = (sys_isUHeapPlacementStrategyNEXTFIT())?userHeapNextFitStrategy(new_size):userHeapBestFitStrategy(new_size);
 		if(newAddress != NULL){
 			if(new_size <= oldSize){
