@@ -562,7 +562,7 @@ void page_fault_handler(struct Env * curenv, uint32 fault_va) {
 	preparePlacingInWs(curenv, fault_va, idx);
 	placeInWS(curenv, fault_va, idx);
 
-//TODO: [PROJECT 2022 - BONUS4] Change WS Size according to Program Priority‌
+//TODO DONE [PROJECT 2022 - BONUS4] Change WS Size according to Program Priority‌
 }
 
 void __page_fault_handler_with_buffering(struct Env * curenv, uint32 fault_va) {
