@@ -24,30 +24,30 @@ bool userHeapIntialized = 0;
 
 void intializeUserHeap(){
 
-	for (uint32 addr = USER_HEAP_START; addr < USER_HEAP_MAX; addr += PAGE_SIZE){
-		int addrIndex = userHeapIndex(addr);
-		userHeap[addrIndex].startAddress = 0;
-		userHeap[addrIndex].virtualAddress = addr;
-		userHeap[addrIndex].reserved = 0;
+	for (uint32 curAddr = USER_HEAP_START; curAddr < USER_HEAP_MAX; curAddr += PAGE_SIZE){
+		int curAddrIndex = userHeapIndex(curAddr);
+		userHeap[curAddrIndex].startAddress = 0;
+		userHeap[curAddrIndex].virtualAddress = curAddr;
+		userHeap[curAddrIndex].reserved = 0;
 	}
 }
 
-uint32 userHeapIndex(uint32 addr){
-	return (addr - USER_HEAP_START) / PAGE_SIZE;
+uint32 userHeapIndex(uint32 curAddr){
+	return (curAddr - USER_HEAP_START) / PAGE_SIZE;
 }
 
 void freeFromUserHeap(void* virtual_address,uint32 size){
-	for(uint32 addr = (uint32)virtual_address; addr < (uint32)virtual_address + size; addr += PAGE_SIZE ){
-		int addrIndex = userHeapIndex(addr);
-		userHeap[addrIndex].reserved=0;
-		userHeap[addrIndex].startAddress=0;
+	for(uint32 curAddr = (uint32)virtual_address; curAddr < (uint32)virtual_address + size; curAddr += PAGE_SIZE ){
+		int curAddrIndex = userHeapIndex(curAddr);
+		userHeap[curAddrIndex].reserved=0;
+		userHeap[curAddrIndex].startAddress=0;
 	}
 }
 
 uint32 getFreeSpaceForExpand(uint32 virtual_address){
 	uint32 freeSize = 0;
-	for(int addIndex = userHeapIndex(virtual_address); addIndex < numOfUserHeapEntries; addIndex++){
-        if(userHeap[addIndex].startAddress == 0){
+	for(int curAddrIndex = userHeapIndex(virtual_address); curAddrIndex < numOfUserHeapEntries; curAddrIndex++){
+        if(userHeap[curAddrIndex].startAddress == 0){
 			freeSize+=PAGE_SIZE;
 		}
 		else
@@ -59,9 +59,9 @@ uint32 getFreeSpaceForExpand(uint32 virtual_address){
 uint32 getReservedBlockSize(uint32 startAddress){
 	uint32 size = 0;
 
-	for(uint32 addr = startAddress; addr < USER_HEAP_MAX; addr += PAGE_SIZE ){
-		int addrIndex = userHeapIndex(addr);
-		if(userHeap[addrIndex].startAddress == startAddress){
+	for(uint32 curAddr = startAddress; curAddr < USER_HEAP_MAX; curAddr += PAGE_SIZE ){
+		int curAddrIndex = userHeapIndex(curAddr);
+		if(userHeap[curAddrIndex].startAddress == startAddress){
 			size+=PAGE_SIZE;
 		}
 	}
@@ -72,14 +72,14 @@ void* getFreeSpaceForAllocationInUserHeap(uint32 start, uint32 end, uint32 size)
 
 	uint32 freeSize = 0;
 
-	for (uint32 addr = start;addr < end; addr += PAGE_SIZE) {
-		if (!userHeap[userHeapIndex(addr)].reserved) {
+	for (uint32 curAddr = start;curAddr < end; curAddr += PAGE_SIZE) {
+		if (!userHeap[userHeapIndex(curAddr)].reserved) {
 			//found a free page
 			freeSize += PAGE_SIZE;
 			if (freeSize == size) {
-				addr -= size; //return ddr ptr properly
-				addr += PAGE_SIZE; //since addr isnt incremented until the end of the iteration
-				return (void*) addr;
+				curAddr -= size; //return ddr ptr properly
+				curAddr += PAGE_SIZE; //since curAddr isnt incremented until the end of the iteration
+				return (void*) curAddr;
 			}
 		} else
 			//need to look for another segment
@@ -106,16 +106,16 @@ void* userHeapBestFitStrategy(uint32 size){
 	uint32 minFreeSize = (USER_HEAP_MAX - USER_HEAP_START) + PAGE_SIZE; //just over the amount of userHeap
 	uint32 startAddress = 0;
 
-	for(uint32 addr = USER_HEAP_START; addr < USER_HEAP_MAX; addr+=PAGE_SIZE){
+	for(uint32 curAddr = USER_HEAP_START; curAddr < USER_HEAP_MAX; curAddr+=PAGE_SIZE){
 
-		if (!userHeap[userHeapIndex(addr)].reserved)
+		if (!userHeap[userHeapIndex(curAddr)].reserved)
 			//free page
 			freeSize += PAGE_SIZE;
 
 		else{
 			if (freeSize >= size && freeSize < minFreeSize){
 				minFreeSize = freeSize;
-				startAddress = addr - minFreeSize;
+				startAddress = curAddr - minFreeSize;
 			}
 			freeSize = 0;
 		}
@@ -138,14 +138,14 @@ void* userHeapBestFitStrategy(uint32 size){
 
 void* allocateInUserHeap(uint32 startAddress, uint32 size){
 
-	int addrIndex = userHeapIndex(startAddress);
+	int curAddrIndex = userHeapIndex(startAddress);
 	while(size > 0){
-		userHeap[addrIndex].reserved = 1;
-		userHeap[addrIndex].startAddress = startAddress;
-		addrIndex++;
+		userHeap[curAddrIndex].reserved = 1;
+		userHeap[curAddrIndex].startAddress = startAddress;
+		curAddrIndex++;
 		size-=PAGE_SIZE;
 	}
-	return (void*)userHeap[(addrIndex % numOfUserHeapEntries)].virtualAddress;
+	return (void*)userHeap[(curAddrIndex % numOfUserHeapEntries)].virtualAddress;
 }
 
 

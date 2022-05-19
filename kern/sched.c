@@ -19,6 +19,8 @@ uint8 currentEnvQuantumIndex = 0;
 void sched_delete_ready_queues() ;
 uint32 isSchedMethodRR(){if(scheduler_method == SCH_RR) return 1; return 0;}
 uint32 isSchedMethodMLFQ(){if(scheduler_method == SCH_MLFQ) return 1; return 0;}
+void placeCurEnvInSuitableQueue();
+struct Env* getNextEnv();
 
 //==================================================================================//
 //============================== HELPER FUNCTIONS ==================================//
@@ -101,6 +103,7 @@ void sched_init_MLFQ(uint8 numOfLevels, uint8 *quantumOfEachLevel)
 
 	//TODO DONE [PROJECT 2022 [7] CPU Scheduling MLFQ] Initialize MLFQ
 
+
 	num_of_ready_queues = numOfLevels;
     env_ready_queues = (struct Env_Queue*)kmalloc((sizeof(struct Env_Queue) * num_of_ready_queues));
 	quantums = (uint8*)kmalloc((num_of_ready_queues * sizeof(uint8))) ;
@@ -118,6 +121,29 @@ void sched_init_MLFQ(uint8 numOfLevels, uint8 *quantumOfEachLevel)
 	kclock_set_quantum(quantums[0]);
 }
 
+void placeCurEnvInSuitableQueue(){
+
+	if(currentEnvQuantumIndex != (num_of_ready_queues - 1)){
+		currentEnvQuantumIndex++;
+	}
+	enqueue(&(env_ready_queues[currentEnvQuantumIndex]),curenv);
+}
+
+struct Env* getNextEnv(){
+	struct Env *nextEnv = NULL;
+
+	for (int queueNumber = 0; queueNumber < num_of_ready_queues;queueNumber++) {
+
+		if (queue_size(&(env_ready_queues[queueNumber]))) {
+			nextEnv = dequeue(&(env_ready_queues[queueNumber]));
+			currentEnvQuantumIndex = queueNumber;
+			kclock_set_quantum(quantums[currentEnvQuantumIndex]);
+			return nextEnv;
+		}
+	}
+	return NULL;
+}
+
 
 struct Env* fos_scheduler_MLFQ()
 {
@@ -129,28 +155,17 @@ struct Env* fos_scheduler_MLFQ()
 	//Steps:
 	//======
 	//[1] If the current environment (curenv) exists, place it in the suitable queue
+
 	if(curenv!=NULL){
-		if(currentEnvQuantumIndex != (num_of_ready_queues - 1)){
-			currentEnvQuantumIndex++;
-		}
-		enqueue(&(env_ready_queues[currentEnvQuantumIndex]),curenv);
+		placeCurEnvInSuitableQueue();
 	}
 
-	struct Env *nextEnv = NULL;
 	//[2] Search for the next env in the queues according to their priorities (first is highest)
-	for(int queueNumber = 0 ; queueNumber < num_of_ready_queues; queueNumber++){
+	//[3] If next env is found: Set the CPU quantum by the quantum of the selected level
+				//	  ,remove the selected env from its queue and return it
+				//	  Else, return NULL
 
-		//[3] If next env is found: Set the CPU quantum by the quantum of the selected level
-		//	  ,remove the selected env from its queue and return it
-		//	  Else, return NULL
-		if(queue_size(&(env_ready_queues[queueNumber]))){
-			nextEnv = dequeue(&(env_ready_queues[queueNumber]));
-			currentEnvQuantumIndex = queueNumber;
-			kclock_set_quantum(quantums[currentEnvQuantumIndex]);
-			break;
-		}
-	}
-	return nextEnv;
+	return getNextEnv();
 }
 
 

@@ -26,17 +26,17 @@ bool kernelHeapIntialized = 0;
 
 void initializeDataArr(){
     //initialize the kernelHeap by setting all the addresses correctly
-	for (uint32 addr = KERNEL_HEAP_START; addr < KERNEL_HEAP_MAX; addr += PAGE_SIZE){
-		kernelHeap[kernelHeapIndex(addr)].reserved = 0;
-		kernelHeap[kernelHeapIndex(addr)].startAddress = 0;
-		kernelHeap[kernelHeapIndex(addr)].virtualAddress = addr;
+	for (uint32 curAddr = KERNEL_HEAP_START; curAddr < KERNEL_HEAP_MAX; curAddr += PAGE_SIZE){
+		kernelHeap[kernelHeapIndex(curAddr)].reserved = 0;
+		kernelHeap[kernelHeapIndex(curAddr)].startAddress = 0;
+		kernelHeap[kernelHeapIndex(curAddr)].virtualAddress = curAddr;
 
 	}
 }
 
 
-uint32 kernelHeapIndex(uint32 addr){
-	return (addr - KERNEL_HEAP_START) / PAGE_SIZE;
+uint32 kernelHeapIndex(uint32 curAddr){
+	return (curAddr - KERNEL_HEAP_START) / PAGE_SIZE;
 }
 
 void* getFreeSpaceForAllocationInKernelHeap(uint32 start,uint32 end,uint32 size){
@@ -82,7 +82,7 @@ void* kernelHeapBestFitStrategy(uint32 size){
 	uint32 minFreeBytesSoFar = (KERNEL_HEAP_MAX - KERNEL_HEAP_START) + PAGE_SIZE; //just over the amount of kheap
 	uint32 minFreeBytesPtr = 0;
 
-	for(uint32 curAddr = KERNEL_HEAP_START; curAddr < KERNEL_HEAP_MAX; curAddr+=PAGE_SIZE){
+	for(uint32 curAddr = KERNEL_HEAP_START; curAddr < KERNEL_HEAP_MAX; curAddr+= PAGE_SIZE){
 		if (!kernelHeap[kernelHeapIndex(curAddr)].reserved)
 			//free page
 			freeSize += PAGE_SIZE;
@@ -112,18 +112,18 @@ void* kernelHeapBestFitStrategy(uint32 size){
 
 void* allocateInKernelHeap(uint32 startAddress, uint32 size){
 
-	int addrIndex = kernelHeapIndex(startAddress);
+	int curAddressIndex = kernelHeapIndex(startAddress);
 	while(size){
 		struct Frame_Info *ptr_frame_info = 0;
 		allocate_frame(&ptr_frame_info);
-		map_frame(ptr_page_directory, ptr_frame_info, (void*)kernelHeap[addrIndex].virtualAddress, PERM_PRESENT | PERM_WRITEABLE);
-		kernelHeap[addrIndex].reserved = 1;
-		kernelHeap[addrIndex].startAddress = startAddress;
-		kernelHeap[addrIndex].physicalAddress = kheap_physical_address(kernelHeap[addrIndex].virtualAddress);
-		addrIndex++;
+		map_frame(ptr_page_directory, ptr_frame_info, (void*)kernelHeap[curAddressIndex].virtualAddress, PERM_PRESENT | PERM_WRITEABLE);
+		kernelHeap[curAddressIndex].reserved = 1;
+		kernelHeap[curAddressIndex].startAddress = startAddress;
+		kernelHeap[curAddressIndex].physicalAddress = kheap_physical_address(kernelHeap[curAddressIndex].virtualAddress);
+		curAddressIndex++;
 		size-=PAGE_SIZE;
 	}
-	return (void*)kernelHeap[(addrIndex % numOfKernelHeapEntries)].virtualAddress;
+	return (void*)kernelHeap[(curAddressIndex % numOfKernelHeapEntries)].virtualAddress;
 
 }
 
@@ -157,10 +157,10 @@ void kfree(void* virtual_address)
 	//TODO:DONE [PROJECT 2022 - [2] Kernel Heap] kfree()
 	virtual_address = ROUNDDOWN(virtual_address,PAGE_SIZE);
 
-	for (uint32 addr = (uint32)virtual_address; addr < KERNEL_HEAP_MAX; addr += PAGE_SIZE){
-		int addressIndex = kernelHeapIndex(addr);
+	for (uint32 curAddr = (uint32)virtual_address; curAddr < KERNEL_HEAP_MAX; curAddr += PAGE_SIZE){
+		int addressIndex = kernelHeapIndex(curAddr);
 		if (kernelHeap[addressIndex].reserved && (uint32)virtual_address == kernelHeap[addressIndex].startAddress){
-			unmap_frame(ptr_page_directory, (void*)addr);
+			unmap_frame(ptr_page_directory, (void*)curAddr);
 			kernelHeap[addressIndex].reserved = 0;
 			kernelHeap[addressIndex].startAddress = 0;  //return the value to be the same during initialization
 			kernelHeap[addressIndex].physicalAddress = 0;
@@ -175,9 +175,9 @@ unsigned int kheap_virtual_address(unsigned int physical_address)
 {
 	//TODO:DONE [PROJECT 2022 - [3] Kernel Heap] kheap_virtual_address()
 
-	for (int i = 0; i < numOfKernelHeapEntries; i++){
-		if (kernelHeap[i].physicalAddress == physical_address)
-			return kernelHeap[i].virtualAddress;
+	for (int curAddressIndex = 0;  curAddressIndex < numOfKernelHeapEntries; curAddressIndex++){
+		if (kernelHeap[curAddressIndex].physicalAddress == physical_address)
+			return kernelHeap[curAddressIndex].virtualAddress;
 	}
 	return 0;
 }

@@ -430,7 +430,7 @@ void table_fault_handler(struct Env * curenv, uint32 fault_va) {
 uint32 checkForWsToDeleteWithPermisions(struct Env* env, int permissions) {
 
 	env->page_last_WS_index %= env->page_WS_max_size;
-	uint32 tmp = env->page_last_WS_index;
+	uint32 endPtr = env->page_last_WS_index;
 	uint32 wsEntryidx = -1;
 	do {
 		uint32 va = env_page_ws_get_virtual_address(env,env->page_last_WS_index);
@@ -446,7 +446,7 @@ uint32 checkForWsToDeleteWithPermisions(struct Env* env, int permissions) {
 		env->page_last_WS_index++;
 		env->page_last_WS_index %= env->page_WS_max_size;
 	}
-	while (env->page_last_WS_index != tmp);
+	while (env->page_last_WS_index != endPtr);
 
 	return wsEntryidx;
 }

@@ -754,12 +754,12 @@ void freeMem(struct Env* e, uint32 virtual_address, uint32 size)
 
 	//TODO:DONE [PROJECT 2022 - [12] User Heap] freeMem() [Kernel Side]
 
-	uint32 tempVirtualAddress = virtual_address, tempSize = size;
-	while (tempSize) {
+	uint32 curAddr = virtual_address, sizeToFree = size;
+	while (sizeToFree) {
 		// 1. Free ALL pages of the given range from the Page File
-		pf_remove_env_page(e, tempVirtualAddress); // Remove an existing environment page at the given virtual address from the page file.
-		tempVirtualAddress += PAGE_SIZE;
-		tempSize -= PAGE_SIZE;
+		pf_remove_env_page(e, curAddr); // Remove an existing environment page at the given virtual address from the page file.
+		curAddr += PAGE_SIZE;
+		sizeToFree -= PAGE_SIZE;
 	}
 
 	// 2. Free ONLY pages that are resident in the working set from the memory
