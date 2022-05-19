@@ -735,11 +735,6 @@ int loadtime_map_frame(uint32 *ptr_page_directory, struct Frame_Info *ptr_frame_
 void allocateMem(struct Env* e, uint32 virtual_address, uint32 size)
 {
 	//TODO DONE [PROJECT 2022 - [10] User Heap] allocateMem() [Kernel Side]
-	// Write your code here, remove the panic and write your code
-	// panic("allocateMem() is not implemented yet...!!");
-
-	//This function should allocate ALL pages of the required range in the PAGE FILE
-	//and allocate NOTHING in the main memory
 
 	uint32 virtualAddress = virtual_address;
 	while (size) {
@@ -758,12 +753,6 @@ void freeMem(struct Env* e, uint32 virtual_address, uint32 size)
 {
 
 	//TODO:DONE [PROJECT 2022 - [12] User Heap] freeMem() [Kernel Side]
-
-	//This function should:
-	//1. Free ALL pages of the given range from the Page File
-	//2. Free ONLY pages that are resident in the working set from the memory
-	//3. Removes ONLY the empty page tables (i.e. not used) (no pages are mapped in the table)
-	//   remember that the page table was created using kmalloc so it should be removed using kfree()
 
 	uint32 tempVirtualAddress = virtual_address, tempSize = size;
 	while (tempSize) {
@@ -827,16 +816,9 @@ void __freeMem_with_buffering(struct Env* e, uint32 virtual_address, uint32 size
 	//Refer to the project presentation and documentation for details
 }
 
-//================= [BONUS] =====================
-// [3] moveMem
 
 void moveMem(struct Env* e, uint32 src_virtual_address, uint32 dst_virtual_address, uint32 size){
 	//TODO DONE [PROJECT 2022 - BONUS3] User Heap Realloc [Kernel Side]
-
-	// This function should move all pages from "src_virtual_address" to "dst_virtual_address"
-	// with the given size
-	// After finishing, the src_virtual_address must no longer be accessed/exist in either page file
-	// or main memory
 
 	while(size){
 		int pageStatus = pf_add_empty_env_page(e, dst_virtual_address,0);

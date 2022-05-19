@@ -546,7 +546,7 @@ void page_fault_handler(struct Env * curenv, uint32 fault_va) {
 	else {
 
 		if ((curenv->priority == PRIORITY_ABOVENORMAL&& curenv->wsMaxSizeDoubled)
-			||(curenv->priority == PRIORITY_HIGH && curenv->page_WS_max_size*2 <= __PWS_MAX_SIZE)) {
+			||(curenv->priority == PRIORITY_HIGH && curenv->page_WS_max_size*2 <= 100)) {
 			curenv->page_WS_max_size*=2;
 			idx = curenv->page_last_WS_index;
 			curenv->wsMaxSizeDoubled = 1;
