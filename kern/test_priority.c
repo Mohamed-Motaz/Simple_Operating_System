@@ -153,7 +153,7 @@ void test_priority_normal_and_higher()
 		}
 
 		freeFrames = sys_calculate_free_frames();
-		freeDiskFrames = pf_calculate_free_frames() ;
+		freeDiskFrames = pf_calculate_free_frames();
 		set_program_priority(factEnv, 5);
 		set_program_priority(helloEnv, 4);
 		if ((pf_calculate_free_frames() - freeDiskFrames) != 0) panic("Old working set should be removed properly\n");

@@ -31,7 +31,10 @@ void set_program_priority(struct Env* env, int priority) {
 		}
 	}
 	else if(priority == PRIORITY_HIGH){
-		if(env_page_ws_get_size(env) == env->page_WS_max_size && env->page_WS_max_size*2 <= 100){
+		uint32 totalMemory = 524288 * 1024; // physical memory = 524288k
+		uint32 totalNoOfFrames = totalMemory / PAGE_SIZE;
+		uint32 halfOfRam = (totalNoOfFrames / 2);
+		if(env_page_ws_get_size(env) == env->page_WS_max_size && env->page_WS_max_size * 2 <= halfOfRam){
 			addWorkingSetEntries(env,env->page_WS_max_size);
 			env->page_WS_max_size *= 2;
 			env->wsMaxSizeDoubled = 1;

@@ -12,6 +12,8 @@
 #include <kern/sched.h>
 #include <kern/kclock.h>
 #include <kern/trap.h>
+#include <kern/priority_manager.h>
+
 
 //our new helper functions
 uint32 modifiedClock(struct Env * curenv);
@@ -545,11 +547,8 @@ void page_fault_handler(struct Env * curenv, uint32 fault_va) {
 
 	else {
 
-		if ((curenv->priority == PRIORITY_ABOVENORMAL&& curenv->wsMaxSizeDoubled)
-			||(curenv->priority == PRIORITY_HIGH && curenv->page_WS_max_size*2 <= 100)) {
-			curenv->page_WS_max_size*=2;
-			idx = curenv->page_last_WS_index;
-			curenv->wsMaxSizeDoubled = 1;
+		if (curenv->priority == PRIORITY_ABOVENORMAL||curenv->priority == PRIORITY_HIGH) {
+			set_program_priority(curenv,curenv->priority);
 		}
 		else
 			//now need to catch a victim

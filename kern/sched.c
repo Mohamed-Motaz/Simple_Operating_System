@@ -130,6 +130,7 @@ void placeCurEnvInSuitableQueue(){
 }
 
 struct Env* getNextEnv(){
+
 	struct Env *nextEnv = NULL;
 
 	for (int queueNumber = 0; queueNumber < num_of_ready_queues;queueNumber++) {
@@ -149,21 +150,9 @@ struct Env* fos_scheduler_MLFQ()
 {
 	//TODO:DONE [PROJECT 2022 [8] CPU Scheduling MLFQ] MLFQ Scheduler
 
-	//Apply the MLFQ with the specified levels to pick up the next environment
-	//Note: the "curenv" (if exist) should be placed in its correct queue
-
-	//Steps:
-	//======
-	//[1] If the current environment (curenv) exists, place it in the suitable queue
-
 	if(curenv!=NULL){
 		placeCurEnvInSuitableQueue();
 	}
-
-	//[2] Search for the next env in the queues according to their priorities (first is highest)
-	//[3] If next env is found: Set the CPU quantum by the quantum of the selected level
-				//	  ,remove the selected env from its queue and return it
-				//	  Else, return NULL
 
 	return getNextEnv();
 }
